@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../context/ThemeContext';
-import TabBar from '../components/common/TabBar';
 import EmpresaFilter from '../components/common/EmpresaFilter';
+import DateFilter from '../components/common/DateFilter';
 import { supabase } from '../lib/supabase';
 
 interface Visualizacao {
@@ -11,6 +11,8 @@ interface Visualizacao {
   tipo: string;
   ordem: number;
   ativo: boolean;
+  nome_exibicao: string;
+  tipo_visualizacao: string;
 }
 
 const Home: React.FC = () => {
@@ -20,9 +22,16 @@ const Home: React.FC = () => {
   const [visualizacoes, setVisualizacoes] = useState<Visualizacao[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Inicializa com o mês anterior e ano atual
+  const hoje = new Date();
+  const [selectedMonth, setSelectedMonth] = useState(hoje.getMonth() === 0 ? 11 : hoje.getMonth() - 1);
+  const [selectedYear, setSelectedYear] = useState(
+    hoje.getMonth() === 0 ? hoje.getFullYear() - 1 : hoje.getFullYear()
+  );
+
   useEffect(() => {
     fetchVisualizacoes();
-  }, []);
+  }, [selectedEmpresa, selectedMonth, selectedYear]);
 
   const fetchVisualizacoes = async () => {
     try {
@@ -42,6 +51,35 @@ const Home: React.FC = () => {
     }
   };
 
+  const renderVisualizacao = (visualizacao: Visualizacao) => {
+    return (
+      <div
+        key={visualizacao.id}
+        className={`rounded-xl p-6 ${isDark ? 'bg-[#151515]' : 'bg-white'}`}
+      >
+        <h3 className={`text-lg font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+          {visualizacao.nome_exibicao}
+        </h3>
+        {visualizacao.tipo_visualizacao === 'grafico' ? (
+          <div className="h-[300px] flex items-center justify-center">
+            <p className={`text-lg ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              Área do gráfico: {visualizacao.descricao}
+            </p>
+          </div>
+        ) : (
+          <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+            {visualizacao.descricao}
+          </p>
+        )}
+      </div>
+    );
+  };
+
+  // Organiza as visualizações por tipo e ordem
+  const cardsVisualizacoes = visualizacoes.filter(v => v.tipo_visualizacao === 'card');
+  const graficoVisualizacoes = visualizacoes.filter(v => v.tipo_visualizacao === 'grafico');
+  const widgetsVisualizacoes = visualizacoes.filter(v => v.tipo_visualizacao === 'widget');
+
   return (
     <div className="h-full">
       <div className="px-6 mb-6">
@@ -53,12 +91,21 @@ const Home: React.FC = () => {
         </p>
       </div>
 
-      <div className={`px-6 ${isDark ? 'bg-[#151515]' : 'bg-white'} py-4 rounded-xl mb-6`}>
-        <div className="flex items-center justify-end">
-          <EmpresaFilter
-            value={selectedEmpresa}
-            onChange={setSelectedEmpresa}
-          />
+      <div className={`mx-6 ${isDark ? 'bg-[#151515]' : 'bg-white'} py-4 px-6 rounded-xl mb-6`}>
+        <div className="flex items-center gap-4">
+          <div className="flex-1 flex items-center gap-4">
+            <EmpresaFilter
+              value={selectedEmpresa}
+              onChange={setSelectedEmpresa}
+              className="flex-1"
+            />
+            <DateFilter
+              selectedMonth={selectedMonth}
+              selectedYear={selectedYear}
+              onMonthChange={setSelectedMonth}
+              onYearChange={setSelectedYear}
+            />
+          </div>
         </div>
       </div>
 
@@ -69,66 +116,43 @@ const Home: React.FC = () => {
           </p>
         </div>
       ) : (
-        <div className="px-6">
-          {/* Grid de 4 cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-            {visualizacoes
-              .filter(v => v.tipo === 'card')
-              .map(visualizacao => (
-                <div
-                  key={visualizacao.id}
-                  className={`rounded-xl p-6 ${isDark ? 'bg-[#151515]' : 'bg-white'}`}
-                >
-                  <h3 className={`text-lg font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    {visualizacao.titulo}
-                  </h3>
-                  <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                    {visualizacao.descricao}
-                  </p>
-                </div>
-              ))}
-          </div>
+        <div className="px-6 space-y-6">
+          {/* Cards em grid */}
+          {cardsVisualizacoes.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {cardsVisualizacoes
+                .sort((a, b) => a.ordem - b.ordem)
+                .map(renderVisualizacao)}
+            </div>
+          )}
 
-          {/* Card grande para gráfico */}
-          {visualizacoes
-            .filter(v => v.tipo === 'grafico')
-            .map(visualizacao => (
-              <div
-                key={visualizacao.id}
-                className={`rounded-xl p-6 mb-6 ${isDark ? 'bg-[#151515]' : 'bg-white'}`}
-              >
-                <h3 className={`text-lg font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  {visualizacao.titulo}
-                </h3>
-                <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                  {visualizacao.descricao}
-                </p>
-                <div className="h-[400px] flex items-center justify-center">
-                  <p className={`text-lg ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                    Área do gráfico
-                  </p>
-                </div>
+          {/* Gráficos */}
+          {graficoVisualizacoes.length > 0 && (
+            <div className="space-y-6">
+              {graficoVisualizacoes
+                .sort((a, b) => a.ordem - b.ordem)
+                .map(renderVisualizacao)}
+            </div>
+          )}
+
+          {/* Widgets em dois grids */}
+          {widgetsVisualizacoes.length > 0 && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Grid 1 - Widgets de ordem 6 */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {widgetsVisualizacoes
+                  .filter(w => w.ordem === 6)
+                  .map(renderVisualizacao)}
               </div>
-            ))}
-
-          {/* 2 cards largos */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {visualizacoes
-              .filter(v => v.tipo === 'card-largo')
-              .map(visualizacao => (
-                <div
-                  key={visualizacao.id}
-                  className={`rounded-xl p-6 ${isDark ? 'bg-[#151515]' : 'bg-white'}`}
-                >
-                  <h3 className={`text-lg font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    {visualizacao.titulo}
-                  </h3>
-                  <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                    {visualizacao.descricao}
-                  </p>
-                </div>
-              ))}
-          </div>
+              
+              {/* Grid 2 - Widgets de ordem 7 */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {widgetsVisualizacoes
+                  .filter(w => w.ordem === 7)
+                  .map(renderVisualizacao)}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
