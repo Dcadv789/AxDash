@@ -20,6 +20,8 @@ interface Componente {
   id: string;
   categoria_id?: string;
   indicador_id?: string;
+  tabela_origem?: string;
+  todos?: boolean;
 }
 
 export const useVisualizacoes = (empresaId: string, mes: number, ano: number) => {
@@ -78,6 +80,13 @@ export const useVisualizacoes = (empresaId: string, mes: number, ano: number) =>
 
   const fetchVisualizacoes = async () => {
     try {
+      // Se não houver empresa selecionada, retorna array vazio
+      if (!empresaId) {
+        setVisualizacoes([]);
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       const { data: configVisualizacoes, error } = await supabase
         .from('config_visualizacoes')
@@ -108,9 +117,12 @@ export const useVisualizacoes = (empresaId: string, mes: number, ano: number) =>
               valorAtual += valorComponente;
               itens = [...itens, ...itensComponente];
 
-              lancamentosAnteriores.forEach(lancamento => {
-                valorAnterior += lancamento.tipo === 'Receita' ? lancamento.valor : -lancamento.valor;
-              });
+              const { valorAtual: valorAnteriorComponente } = processarLancamentos(
+                lancamentosAnteriores,
+                [],
+                visualizacao.tipo_visualizacao
+              );
+              valorAnterior += valorAnteriorComponente;
             }
 
             if (visualizacao.tipo_visualizacao === 'lista') {
@@ -137,6 +149,7 @@ export const useVisualizacoes = (empresaId: string, mes: number, ano: number) =>
       setVisualizacoes(visualizacoesProcessadas);
     } catch (error) {
       console.error('Erro ao buscar visualizações:', error);
+      setVisualizacoes([]);
     } finally {
       setLoading(false);
     }

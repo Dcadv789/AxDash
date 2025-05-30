@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { buscarIdsDisponiveis } from './componentesService';
 
 export interface Lancamento {
   valor: number;
@@ -18,12 +19,31 @@ export interface ListItem {
   variacao?: number;
 }
 
+interface ComponenteFiltro {
+  categoria_id?: string;
+  indicador_id?: string;
+  cliente_id?: string;
+  tabela_origem?: string;
+  todos?: boolean;
+}
+
 export const getLancamentos = async (
   mes: number,
   ano: number,
-  filtros?: { categoria_id?: string; indicador_id?: string }
+  filtros?: ComponenteFiltro
 ) => {
   try {
+    if (!filtros) return [];
+
+    // Normalize table name if it's 'indicador'
+    const filtrosNormalizados = {
+      ...filtros,
+      tabela_origem: filtros.tabela_origem === 'indicador' ? 'indicadores' : filtros.tabela_origem
+    };
+
+    const ids = await buscarIdsDisponiveis(filtrosNormalizados);
+    if (ids.length === 0) return [];
+
     const query = supabase
       .from('lancamentos')
       .select(`
@@ -39,11 +59,26 @@ export const getLancamentos = async (
       .eq('mes', mes + 1)
       .eq('ano', ano);
 
-    if (filtros?.categoria_id) {
-      query.eq('categoria_id', filtros.categoria_id);
-    }
-    if (filtros?.indicador_id) {
-      query.eq('indicador_id', filtros.indicador_id);
+    // Se todos não for true, usa eq ao invés de in
+    if (filtrosNormalizados.todos !== true) {
+      if (filtrosNormalizados.categoria_id) {
+        query.eq('categoria_id', filtrosNormalizados.categoria_id);
+      }
+      if (filtrosNormalizados.indicador_id) {
+        query.eq('indicador_id', filtrosNormalizados.indicador_id);
+      }
+      if (filtrosNormalizados.cliente_id) {
+        query.eq('cliente_id', filtrosNormalizados.cliente_id);
+      }
+    } else {
+      // Se todos for true, usa in com todos os IDs disponíveis
+      if (filtrosNormalizados.tabela_origem === 'categorias') {
+        query.in('categoria_id', ids);
+      } else if (filtrosNormalizados.tabela_origem === 'indicadores') {
+        query.in('indicador_id', ids);
+      } else if (filtrosNormalizados.tabela_origem === 'clientes') {
+        query.in('cliente_id', ids);
+      }
     }
 
     const { data, error } = await query;

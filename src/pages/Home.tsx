@@ -11,6 +11,7 @@ import {
   CreditCard, 
   Wallet, 
   PiggyBank,
+  Building
 } from 'lucide-react';
 
 const Home: React.FC = () => {
@@ -45,6 +46,18 @@ const Home: React.FC = () => {
   const graficoVisualizacoes = visualizacoes.filter(v => v.tipo_visualizacao === 'grafico');
   const listaVisualizacoes = visualizacoes.filter(v => v.tipo_visualizacao === 'lista');
 
+  const renderNoEmpresaSelected = () => (
+    <div className={`rounded-xl p-8 ${isDark ? 'bg-[#151515]' : 'bg-white'} text-center`}>
+      <Building className={`w-12 h-12 mx-auto mb-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+      <h2 className={`text-xl font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+        Selecione uma empresa
+      </h2>
+      <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+        Para visualizar os dados do dashboard, selecione uma empresa no filtro acima
+      </p>
+    </div>
+  );
+
   return (
     <div className="h-full flex flex-col">
       <div className="flex items-center justify-between mb-6">
@@ -71,7 +84,9 @@ const Home: React.FC = () => {
         </div>
       </div>
 
-      {loading ? (
+      {!selectedEmpresa ? (
+        renderNoEmpresaSelected()
+      ) : loading ? (
         <div className="flex items-center justify-center flex-1">
           <p className={`text-lg ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
             Carregando visualizações...
