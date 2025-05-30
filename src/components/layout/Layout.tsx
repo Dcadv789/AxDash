@@ -14,15 +14,11 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           <Sidebar />
           
           <div className={`flex-grow flex flex-col transition-all duration-300 ${isSidebarCollapsed ? 'ml-28' : 'ml-64'}`}>
-            <div className="fixed z-10" style={{ 
-              left: `calc(${isSidebarCollapsed ? '7rem' : '16rem'} + 1.5rem)`,
-              right: '1.5rem',
-              top: '1.5rem'
-            }}>
+            <div className="mb-6 px-6">
               <Topbar />
             </div>
             
-            <main className="mt-24 flex-1 overflow-auto">
+            <main className="flex-1 overflow-auto">
               {children}
             </main>
           </div>

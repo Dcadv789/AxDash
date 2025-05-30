@@ -94,7 +94,7 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
   const renderChart = () => {
     const commonProps = {
       ...chartProps,
-      margin: { top: 10, right: 20, left: 10, bottom: 20 }
+      margin: { top: 10, right: 20, left: 10, bottom: 5 }
     };
 
     const legendProps = {
@@ -115,6 +115,7 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
               height={30}
               tick={{ fontSize: 13, fontWeight: 600, fill: '#3B82F6' }}
               interval="preserveStartEnd"
+              dy={10}
             />
             <YAxis 
               {...yAxisStyle}
@@ -126,6 +127,7 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
                   maximumFractionDigits: 1
                 }).format(value)
               }
+              dx={-10}
             />
             <Tooltip content={<CustomTooltip />} />
             <Legend {...legendProps} />
@@ -154,6 +156,7 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
               height={30}
               tick={{ fontSize: 13, fontWeight: 600, fill: '#3B82F6' }}
               interval="preserveStartEnd"
+              dy={10}
             />
             <YAxis 
               {...yAxisStyle}
@@ -165,6 +168,7 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
                   maximumFractionDigits: 1
                 }).format(value)
               }
+              dx={-10}
             />
             <Tooltip content={<CustomTooltip />} />
             <Legend {...legendProps} />
@@ -190,6 +194,7 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
               height={30}
               tick={{ fontSize: 13, fontWeight: 600, fill: '#3B82F6' }}
               interval="preserveStartEnd"
+              dy={10}
             />
             <YAxis 
               {...yAxisStyle}
@@ -201,6 +206,7 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
                   maximumFractionDigits: 1
                 }).format(value)
               }
+              dx={-10}
             />
             <Tooltip content={<CustomTooltip />} />
             <Legend {...legendProps} />
