@@ -1,161 +1,184 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { getLancamentos, getTituloLancamento, ListItem, Lancamento } from '../services/lancamentosService';
+import { getLancamentos, getTituloLancamento } from '../services/lancamentosService';
 
-export interface Visualizacao {
+interface Visualizacao {
   id: string;
-  titulo: string;
-  descricao: string;
-  tipo: string;
-  ordem: number;
-  ativo: boolean;
   nome_exibicao: string;
-  tipo_visualizacao: string;
+  descricao: string;
+  tipo_visualizacao: 'card' | 'grafico' | 'lista';
+  tipo_grafico?: 'line' | 'bar' | 'area';
+  ordem: number;
   valor_atual?: number;
   valor_anterior?: number;
-  itens?: ListItem[];
-}
-
-interface Componente {
-  id: string;
-  categoria_id?: string;
-  indicador_id?: string;
-  tabela_origem?: string;
-  todos?: boolean;
+  itens?: any[];
+  dados_grafico?: any[];
 }
 
 export const useVisualizacoes = (empresaId: string, mes: number, ano: number) => {
   const [visualizacoes, setVisualizacoes] = useState<Visualizacao[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const calcularValorAnterior = async (
-    componente: Componente,
-    mes: number,
-    ano: number
-  ): Promise<Lancamento[]> => {
-    let mesAnterior = mes - 1;
-    let anoAnterior = ano;
-    
-    if (mesAnterior < 0) {
-      mesAnterior = 11;
-      anoAnterior--;
-    }
-
-    return getLancamentos(mesAnterior, anoAnterior, componente);
-  };
-
-  const processarLancamentos = (
-    lancamentosAtuais: Lancamento[],
-    lancamentosAnteriores: Lancamento[],
-    tipoVisualizacao: string
-  ) => {
-    let valorAtual = 0;
-    let itens: ListItem[] = [];
-
-    lancamentosAtuais.forEach(lancamento => {
-      const valorLancamento = lancamento.tipo === 'Receita' ? lancamento.valor : -lancamento.valor;
-      valorAtual += valorLancamento;
-
-      if (tipoVisualizacao === 'lista') {
-        const lancamentoAnterior = lancamentosAnteriores.find(l => 
-          (l.categoria_id && l.categoria_id === lancamento.categoria_id) ||
-          (l.indicador_id && l.indicador_id === lancamento.indicador_id) ||
-          (l.cliente_id && l.cliente_id === lancamento.cliente_id)
-        );
-        
-        const valorAnterior = lancamentoAnterior ? lancamentoAnterior.valor : 0;
-        const variacao = valorAnterior ? ((lancamento.valor - valorAnterior) / valorAnterior) * 100 : 0;
-
-        itens.push({
-          titulo: getTituloLancamento(lancamento),
-          valor: Math.abs(lancamento.valor),
-          tipo: lancamento.tipo,
-          variacao
-        });
-      }
-    });
-
-    return { valorAtual, itens };
-  };
-
-  const fetchVisualizacoes = async () => {
-    try {
-      // Se não houver empresa selecionada, retorna array vazio
+  useEffect(() => {
+    const fetchVisualizacoes = async () => {
       if (!empresaId) {
         setVisualizacoes([]);
         setLoading(false);
         return;
       }
 
-      setLoading(true);
-      const { data: configVisualizacoes, error } = await supabase
-        .from('config_visualizacoes')
-        .select('*, config_visualizacoes_componentes(*)')
-        .eq('pagina', 'home')
-        .eq('ativo', true)
-        .order('ordem');
+      try {
+        setLoading(true);
 
-      if (error) throw error;
+        // Busca as configurações de visualização
+        const { data: configVisualizacoes, error } = await supabase
+          .from('config_visualizacoes')
+          .select(`
+            *,
+            componentes:config_visualizacoes_componentes(
+              *,
+              categoria:categorias(id, nome),
+              indicador:indicadores(id, nome)
+            )
+          `)
+          .order('ordem');
 
-      const visualizacoesProcessadas = await Promise.all(
-        (configVisualizacoes || []).map(async (visualizacao) => {
-          let valorAtual = 0;
-          let valorAnterior = 0;
-          let itens: ListItem[] = [];
+        if (error) throw error;
 
-          if (visualizacao.config_visualizacoes_componentes) {
-            for (const componente of visualizacao.config_visualizacoes_componentes) {
-              const lancamentosAtuais = await getLancamentos(mes, ano, componente);
-              const lancamentosAnteriores = await calcularValorAnterior(componente, mes, ano);
+        // Para cada visualização, processa os dados
+        const visualizacoesProcessadas = await Promise.all(
+          configVisualizacoes.map(async (config) => {
+            const visualizacao: Visualizacao = {
+              id: config.id,
+              nome_exibicao: config.nome_exibicao,
+              descricao: config.descricao,
+              tipo_visualizacao: config.tipo_visualizacao,
+              tipo_grafico: config.tipo_grafico,
+              ordem: config.ordem,
+            };
 
-              const { valorAtual: valorComponente, itens: itensComponente } = processarLancamentos(
-                lancamentosAtuais,
-                lancamentosAnteriores,
-                visualizacao.tipo_visualizacao
-              );
+            // Processa os componentes associados
+            if (config.componentes) {
+              if (config.tipo_visualizacao === 'card') {
+                let valorAtual = 0;
+                let valorAnterior = 0;
 
-              valorAtual += valorComponente;
-              itens = [...itens, ...itensComponente];
+                // Calcula o valor atual
+                for (const componente of config.componentes) {
+                  const lancamentosAtuais = await getLancamentos(mes, ano, {
+                    categoria_id: componente.categoria?.id,
+                    indicador_id: componente.indicador?.id,
+                    tabela_origem: componente.tabela_origem,
+                    todos: componente.todos,
+                  });
 
-              const { valorAtual: valorAnteriorComponente } = processarLancamentos(
-                lancamentosAnteriores,
-                [],
-                visualizacao.tipo_visualizacao
-              );
-              valorAnterior += valorAnteriorComponente;
+                  valorAtual += lancamentosAtuais.reduce((acc, lanc) => {
+                    return acc + (lanc.tipo === 'Receita' ? lanc.valor : -lanc.valor);
+                  }, 0);
+
+                  // Calcula o valor do mês anterior
+                  const mesAnterior = mes === 0 ? 11 : mes - 1;
+                  const anoAnterior = mes === 0 ? ano - 1 : ano;
+                  
+                  const lancamentosAnteriores = await getLancamentos(mesAnterior, anoAnterior, {
+                    categoria_id: componente.categoria?.id,
+                    indicador_id: componente.indicador?.id,
+                    tabela_origem: componente.tabela_origem,
+                    todos: componente.todos,
+                  });
+
+                  valorAnterior += lancamentosAnteriores.reduce((acc, lanc) => {
+                    return acc + (lanc.tipo === 'Receita' ? lanc.valor : -lanc.valor);
+                  }, 0);
+                }
+
+                visualizacao.valor_atual = valorAtual;
+                visualizacao.valor_anterior = valorAnterior;
+              } else if (config.tipo_visualizacao === 'lista') {
+                const itens = [];
+
+                for (const componente of config.componentes) {
+                  const lancamentos = await getLancamentos(mes, ano, {
+                    categoria_id: componente.categoria?.id,
+                    indicador_id: componente.indicador?.id,
+                    tabela_origem: componente.tabela_origem,
+                    todos: componente.todos,
+                  });
+
+                  for (const lancamento of lancamentos) {
+                    itens.push({
+                      titulo: getTituloLancamento(lancamento),
+                      valor: lancamento.valor,
+                      tipo: lancamento.tipo,
+                    });
+                  }
+                }
+
+                visualizacao.itens = itens.sort((a, b) => b.valor - a.valor);
+              } else if (config.tipo_visualizacao === 'grafico') {
+                const dadosGrafico = [];
+                const meses = [];
+
+                // Gera array com os últimos 13 meses
+                for (let i = 12; i >= 0; i--) {
+                  let mesAtual = mes - i;
+                  let anoAtual = ano;
+
+                  while (mesAtual < 0) {
+                    mesAtual += 12;
+                    anoAtual--;
+                  }
+
+                  meses.push({ mes: mesAtual, ano: anoAtual });
+                }
+
+                // Para cada mês, busca os dados de todos os componentes
+                for (const { mes: mesFiltro, ano: anoFiltro } of meses) {
+                  const dadosMes: any = {
+                    name: new Date(anoFiltro, mesFiltro).toLocaleDateString('pt-BR', {
+                      month: 'long',
+                      year: 'numeric'
+                    }).replace(' de ', '/')
+                  };
+
+                  for (const componente of config.componentes) {
+                    const lancamentos = await getLancamentos(mesFiltro, anoFiltro, {
+                      categoria_id: componente.categoria?.id,
+                      indicador_id: componente.indicador?.id,
+                      tabela_origem: componente.tabela_origem,
+                      todos: componente.todos,
+                    });
+
+                    const valor = lancamentos.reduce((acc, lanc) => {
+                      return acc + (lanc.tipo === 'Receita' ? lanc.valor : -lanc.valor);
+                    }, 0);
+
+                    const chave = componente.categoria?.nome || 
+                                componente.indicador?.nome || 
+                                'Total';
+
+                    dadosMes[chave] = valor;
+                  }
+
+                  dadosGrafico.push(dadosMes);
+                }
+
+                visualizacao.dados_grafico = dadosGrafico;
+              }
             }
 
-            if (visualizacao.tipo_visualizacao === 'lista') {
-              itens = itens
-                .reduce((acc: ListItem[], current) => {
-                  const x = acc.find(item => item.titulo === current.titulo);
-                  if (!x) return acc.concat([current]);
-                  return acc;
-                }, [])
-                .sort((a, b) => b.valor - a.valor)
-                .slice(0, 10);
-            }
-          }
+            return visualizacao;
+          })
+        );
 
-          return {
-            ...visualizacao,
-            valor_atual: valorAtual,
-            valor_anterior: valorAnterior,
-            itens
-          };
-        })
-      );
+        setVisualizacoes(visualizacoesProcessadas);
+      } catch (error) {
+        console.error('Erro ao buscar visualizações:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-      setVisualizacoes(visualizacoesProcessadas);
-    } catch (error) {
-      console.error('Erro ao buscar visualizações:', error);
-      setVisualizacoes([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
     fetchVisualizacoes();
   }, [empresaId, mes, ano]);
 

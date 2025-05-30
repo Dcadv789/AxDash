@@ -4,6 +4,7 @@ import EmpresaFilter from '../components/common/EmpresaFilter';
 import DateFilter from '../components/common/DateFilter';
 import DashboardCard from '../components/dashboard/DashboardCard';
 import DashboardList from '../components/dashboard/DashboardList';
+import DashboardChart from '../components/dashboard/DashboardChart';
 import { useVisualizacoes } from '../hooks/useVisualizacoes';
 import { 
   TrendingUp, 
@@ -116,21 +117,32 @@ const Home: React.FC = () => {
 
           {graficoVisualizacoes.length > 0 && graficoVisualizacoes
             .sort((a, b) => a.ordem - b.ordem)
-            .map(visualizacao => (
-              <div
-                key={visualizacao.id}
-                className={`rounded-xl p-6 ${isDark ? 'bg-[#151515]' : 'bg-white'}`}
-              >
-                <h3 className={`text-lg font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  {visualizacao.nome_exibicao}
-                </h3>
-                <div className="h-[300px] flex items-center justify-center">
-                  <p className={`text-lg ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                    Área do gráfico: {visualizacao.descricao}
-                  </p>
+            .map(visualizacao => {
+              if (!visualizacao.dados_grafico) return null;
+
+              const series = Object.keys(visualizacao.dados_grafico[0])
+                .filter(key => key !== 'name')
+                .map(key => ({
+                  dataKey: key,
+                  name: key
+                }));
+
+              return (
+                <div
+                  key={visualizacao.id}
+                  className={`rounded-xl p-6 ${isDark ? 'bg-[#151515]' : 'bg-white'}`}
+                >
+                  <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    {visualizacao.nome_exibicao}
+                  </h3>
+                  <DashboardChart
+                    type={visualizacao.tipo_grafico || 'line'}
+                    data={visualizacao.dados_grafico}
+                    series={series}
+                  />
                 </div>
-              </div>
-            ))}
+              );
+            })}
 
           {listaVisualizacoes.length > 0 && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 min-h-0">
