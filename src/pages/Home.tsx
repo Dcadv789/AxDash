@@ -94,7 +94,7 @@ const Home: React.FC = () => {
           </p>
         </div>
       ) : (
-        <div className="flex-1 flex flex-col min-h-0 space-y-6">
+        <div className="grid grid-rows-[auto_350px_1fr] gap-6 h-[calc(100vh-180px)]">
           {cardsVisualizacoes.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {cardsVisualizacoes
@@ -130,9 +130,9 @@ const Home: React.FC = () => {
               return (
                 <div
                   key={visualizacao.id}
-                  className={`rounded-xl p-6 ${isDark ? 'bg-[#151515]' : 'bg-white'}`}
+                  className={`rounded-xl p-2 ${isDark ? 'bg-[#151515]' : 'bg-white'}`}
                 >
-                  <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  <h3 className={`text-lg font-semibold px-4 pt-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                     {visualizacao.nome_exibicao}
                   </h3>
                   <DashboardChart
@@ -145,7 +145,7 @@ const Home: React.FC = () => {
             })}
 
           {listaVisualizacoes.length > 0 && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 min-h-0">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-0">
               {listaVisualizacoes
                 .sort((a, b) => a.ordem - b.ordem)
                 .map(visualizacao => (

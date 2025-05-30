@@ -39,17 +39,34 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
 
   const defaultProps = {
     width: '100%',
-    height: 400,
-    margin: { top: 10, right: 30, left: 0, bottom: 0 },
+    height: 300,
+    margin: { top: 5, right: 5, left: 5, bottom: 5 },
   };
 
   const chartProps = {
-    data,
+    data: data.map(item => ({
+      ...item,
+      name: new Date(item.name.split('/')[1], ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'].indexOf(item.name.split('/')[0]), 1)
+        .toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' })
+        .replace(' de ', '/')
+        .replace('.', '')
+        .toUpperCase()
+    })),
     ...defaultProps,
   };
 
   const axisStyle = {
-    fontSize: 13,
+    fontSize: 14,
+    fontWeight: 600
+  };
+
+  const xAxisStyle = {
+    ...axisStyle,
+    fill: '#3B82F6',
+  };
+
+  const yAxisStyle = {
+    ...axisStyle,
     fill: isDark ? '#9CA3AF' : '#6B7280',
   };
 
@@ -77,14 +94,14 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
   const renderChart = () => {
     const commonProps = {
       ...chartProps,
-      margin: { top: 5, right: 30, left: 20, bottom: 20 }
+      margin: { top: 10, right: 5, left: 5, bottom: 5 }
     };
 
     const legendProps = {
       align: 'right' as const,
       verticalAlign: 'top' as const,
       iconSize: 10,
-      wrapperStyle: { paddingBottom: '20px' }
+      wrapperStyle: { paddingBottom: '5px' }
     };
 
     switch (type) {
@@ -94,12 +111,21 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
             <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#374151' : '#E5E7EB'} />
             <XAxis 
               dataKey="name" 
-              {...axisStyle}
-              height={60}
-              tick={{ angle: 0 }}
+              {...xAxisStyle}
+              height={50}
+              tick={{ fontSize: 16 }}
               interval={0}
             />
-            <YAxis {...axisStyle} />
+            <YAxis 
+              {...yAxisStyle}
+              tickFormatter={(value) => 
+                new Intl.NumberFormat('pt-BR', {
+                  notation: 'compact',
+                  compactDisplay: 'short',
+                  maximumFractionDigits: 1
+                }).format(value)
+              }
+            />
             <Tooltip content={<CustomTooltip />} />
             <Legend {...legendProps} />
             {series.map((s, index) => (
@@ -123,12 +149,21 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
             <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#374151' : '#E5E7EB'} />
             <XAxis 
               dataKey="name" 
-              {...axisStyle}
-              height={60}
-              tick={{ angle: 0 }}
+              {...xAxisStyle}
+              height={50}
+              tick={{ fontSize: 16 }}
               interval={0}
             />
-            <YAxis {...axisStyle} />
+            <YAxis 
+              {...yAxisStyle}
+              tickFormatter={(value) => 
+                new Intl.NumberFormat('pt-BR', {
+                  notation: 'compact',
+                  compactDisplay: 'short',
+                  maximumFractionDigits: 1
+                }).format(value)
+              }
+            />
             <Tooltip content={<CustomTooltip />} />
             <Legend {...legendProps} />
             {series.map((s, index) => (
@@ -149,12 +184,21 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
             <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#374151' : '#E5E7EB'} />
             <XAxis 
               dataKey="name" 
-              {...axisStyle}
-              height={60}
-              tick={{ angle: 0 }}
+              {...xAxisStyle}
+              height={50}
+              tick={{ fontSize: 16 }}
               interval={0}
             />
-            <YAxis {...axisStyle} />
+            <YAxis 
+              {...yAxisStyle}
+              tickFormatter={(value) => 
+                new Intl.NumberFormat('pt-BR', {
+                  notation: 'compact',
+                  compactDisplay: 'short',
+                  maximumFractionDigits: 1
+                }).format(value)
+              }
+            />
             <Tooltip content={<CustomTooltip />} />
             <Legend {...legendProps} />
             {series.map((s, index) => (
@@ -177,7 +221,7 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
   };
 
   return (
-    <ResponsiveContainer width="100%" height={400}>
+    <ResponsiveContainer width="100%" height={300}>
       {renderChart()}
     </ResponsiveContainer>
   );
