@@ -25,7 +25,19 @@ interface Visualizacao {
   tipo_visualizacao: string;
   valor_atual?: number;
   valor_anterior?: number;
-  itens?: { titulo: string; valor: string }[];
+  itens?: { titulo: string; valor: number; tipo: string }[];
+}
+
+interface Componente {
+  id: string;
+  categoria_id?: string;
+  indicador_id?: string;
+}
+
+interface Lancamento {
+  valor: number;
+  tipo: 'Receita' | 'Despesa';
+  descricao: string;
 }
 
 const Home: React.FC = () => {
@@ -36,32 +48,143 @@ const Home: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   const hoje = new Date();
-  const [selectedMonth, setSelectedMonth] = useState(hoje.getMonth() === 0 ? 11 : hoje.getMonth() - 1);
-  const [selectedYear, setSelectedYear] = useState(
-    hoje.getMonth() === 0 ? hoje.getFullYear() - 1 : hoje.getFullYear()
-  );
+  const [selectedMonth, setSelectedMonth] = useState(hoje.getMonth());
+  const [selectedYear, setSelectedYear] = useState(hoje.getFullYear());
 
-  useEffect(() => {
-    fetchVisualizacoes();
-  }, [selectedEmpresa, selectedMonth, selectedYear]);
+  const calcularValorRecursivo = async (
+    componente: Componente,
+    mes: number,
+    ano: number
+  ): Promise<Lancamento[]> => {
+    try {
+      const query = supabase
+        .from('lancamentos')
+        .select('valor, tipo, descricao')
+        .eq('mes', mes + 1)
+        .eq('ano', ano);
+
+      if (componente.categoria_id) {
+        query.eq('categoria_id', componente.categoria_id);
+      } else if (componente.indicador_id) {
+        query.eq('indicador_id', componente.indicador_id);
+      }
+
+      const { data: lancamentos, error } = await query;
+
+      if (error) {
+        console.error('Erro ao buscar lançamentos:', error);
+        return [];
+      }
+
+      return lancamentos || [];
+    } catch (error) {
+      console.error('Erro ao calcular valor:', error);
+      return [];
+    }
+  };
+
+  const calcularValorAnterior = async (
+    componente: Componente,
+    mes: number,
+    ano: number
+  ): Promise<Lancamento[]> => {
+    let mesAnterior = mes - 1;
+    let anoAnterior = ano;
+    
+    if (mesAnterior < 0) {
+      mesAnterior = 11;
+      anoAnterior--;
+    }
+
+    return calcularValorRecursivo(componente, mesAnterior, anoAnterior);
+  };
 
   const fetchVisualizacoes = async () => {
     try {
-      const { data, error } = await supabase
+      setLoading(true);
+      const { data: configVisualizacoes, error } = await supabase
         .from('config_visualizacoes')
-        .select('*')
+        .select('*, config_visualizacoes_componentes(*)')
         .eq('pagina', 'home')
         .eq('ativo', true)
         .order('ordem');
 
       if (error) throw error;
-      setVisualizacoes(data || []);
+
+      const visualizacoesProcessadas = await Promise.all(
+        (configVisualizacoes || []).map(async (visualizacao) => {
+          let valorAtual = 0;
+          let valorAnterior = 0;
+          let itens: { titulo: string; valor: number; tipo: string }[] = [];
+
+          if (visualizacao.config_visualizacoes_componentes) {
+            for (const componente of visualizacao.config_visualizacoes_componentes) {
+              const lancamentosAtuais = await calcularValorRecursivo(
+                componente,
+                selectedMonth,
+                selectedYear
+              );
+              
+              const lancamentosAnteriores = await calcularValorAnterior(
+                componente,
+                selectedMonth,
+                selectedYear
+              );
+
+              // Calcula valor total
+              lancamentosAtuais.forEach(lancamento => {
+                if (lancamento.tipo === 'Receita') {
+                  valorAtual += lancamento.valor;
+                } else if (lancamento.tipo === 'Despesa') {
+                  valorAtual -= lancamento.valor;
+                }
+              });
+
+              lancamentosAnteriores.forEach(lancamento => {
+                if (lancamento.tipo === 'Receita') {
+                  valorAnterior += lancamento.valor;
+                } else if (lancamento.tipo === 'Despesa') {
+                  valorAnterior -= lancamento.valor;
+                }
+              });
+
+              // Prepara itens para visualização em lista
+              if (visualizacao.tipo_visualizacao === 'lista') {
+                itens = lancamentosAtuais.map(lancamento => ({
+                  titulo: lancamento.descricao,
+                  valor: Math.abs(lancamento.valor),
+                  tipo: lancamento.tipo
+                }));
+
+                // Ordena do maior para o menor
+                itens.sort((a, b) => b.valor - a.valor);
+                
+                // Limita aos 10 maiores
+                itens = itens.slice(0, 10);
+              }
+            }
+          }
+
+          return {
+            ...visualizacao,
+            valor_atual: valorAtual,
+            valor_anterior: valorAnterior,
+            itens
+          };
+        })
+      );
+
+      setVisualizacoes(visualizacoesProcessadas);
     } catch (error) {
       console.error('Erro ao buscar visualizações:', error);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchVisualizacoes();
+  }, [selectedEmpresa, selectedMonth, selectedYear]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -98,7 +221,6 @@ const Home: React.FC = () => {
         className={`rounded-xl p-6 relative overflow-hidden transition-all duration-200
           ${isDark ? 'bg-[#151515] hover:bg-gray-800/50' : 'bg-white hover:bg-gray-50'}`}
       >
-        {/* Barra decorativa na lateral esquerda */}
         <div className={`absolute top-0 left-0 w-1 h-full bg-indigo-500/30`} />
         
         <div className="flex items-center gap-3 mb-4">
@@ -144,14 +266,22 @@ const Home: React.FC = () => {
         <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
           {visualizacao.nome_exibicao}
         </h3>
-        <div className="space-y-3">
+        <div className="max-h-[300px] overflow-y-auto pr-2 space-y-3 custom-scrollbar">
           {visualizacao.itens?.map((item, index) => (
-            <div key={index} className="flex items-center justify-between">
+            <div 
+              key={index}
+              className={`flex items-center justify-between p-3 rounded-lg transition-colors
+                ${isDark ? 'bg-gray-800/50 hover:bg-gray-800' : 'bg-gray-50 hover:bg-gray-100'}`}
+            >
               <span className={`${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
                 {item.titulo}
               </span>
-              <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                {item.valor}
+              <span className={`font-medium ${
+                item.tipo === 'Receita'
+                  ? 'text-green-500'
+                  : 'text-red-500'
+              }`}>
+                {formatCurrency(item.valor)}
               </span>
             </div>
           ))}
