@@ -117,32 +117,25 @@ export const useVisualizacoes = (empresaId: string, mes: number, ano: number) =>
                 visualizacao.itens = itens.sort((a, b) => b.valor - a.valor);
               } else if (config.tipo_visualizacao === 'grafico') {
                 const dadosGrafico = [];
-                const meses = [];
 
                 // Gera array com os últimos 13 meses
                 for (let i = 12; i >= 0; i--) {
                   let mesAtual = mes - i;
                   let anoAtual = ano;
 
+                  // Ajusta o mês e ano quando necessário
                   while (mesAtual < 0) {
                     mesAtual += 12;
                     anoAtual--;
                   }
 
-                  meses.push({ mes: mesAtual, ano: anoAtual });
-                }
-
-                // Para cada mês, busca os dados de todos os componentes
-                for (const { mes: mesFiltro, ano: anoFiltro } of meses) {
                   const dadosMes: any = {
-                    name: new Date(anoFiltro, mesFiltro).toLocaleDateString('pt-BR', {
-                      month: 'long',
-                      year: 'numeric'
-                    }).replace(' de ', '/')
+                    name: `${mesAtual + 1}/${anoAtual}`
                   };
 
+                  // Para cada componente, busca os dados do mês
                   for (const componente of config.componentes) {
-                    const lancamentos = await getLancamentos(mesFiltro, anoFiltro, {
+                    const lancamentos = await getLancamentos(mesAtual, anoAtual, {
                       categoria_id: componente.categoria?.id,
                       indicador_id: componente.indicador?.id,
                       tabela_origem: componente.tabela_origem,

@@ -39,10 +39,19 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
 
   const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
+  const formatarNomeMes = (dataString: string) => {
+    const [mes, ano] = dataString.split('/');
+    const mesIndex = parseInt(mes) - 1;
+    if (mesIndex >= 0 && mesIndex < 12) {
+      return `${meses[mesIndex]}/${ano}`;
+    }
+    return dataString;
+  };
+
   const chartProps = {
     data: data.map(item => ({
       ...item,
-      name: `${meses[new Date(item.name.split('/')[1], parseInt(item.name.split('/')[0]) - 1).getMonth()]}/${item.name.split('/')[1]}`
+      name: formatarNomeMes(item.name)
     }))
   };
 
