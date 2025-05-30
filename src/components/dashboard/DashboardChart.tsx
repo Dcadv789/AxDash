@@ -37,12 +37,6 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
-  const defaultProps = {
-    width: '100%',
-    height: 300,
-    margin: { top: 5, right: 5, left: 5, bottom: 5 },
-  };
-
   const chartProps = {
     data: data.map(item => ({
       ...item,
@@ -51,13 +45,12 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
         .replace(' de ', '/')
         .replace('.', '')
         .toUpperCase()
-    })),
-    ...defaultProps,
+    }))
   };
 
   const axisStyle = {
-    fontSize: 14,
-    fontWeight: 600
+    fontSize: 12,
+    fontWeight: 500
   };
 
   const xAxisStyle = {
@@ -94,14 +87,14 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
   const renderChart = () => {
     const commonProps = {
       ...chartProps,
-      margin: { top: 10, right: 5, left: 5, bottom: 5 }
+      margin: { top: 10, right: 20, left: 10, bottom: 20 }
     };
 
     const legendProps = {
       align: 'right' as const,
       verticalAlign: 'top' as const,
-      iconSize: 10,
-      wrapperStyle: { paddingBottom: '5px' }
+      iconSize: 8,
+      wrapperStyle: { paddingBottom: '10px' }
     };
 
     switch (type) {
@@ -112,12 +105,13 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
             <XAxis 
               dataKey="name" 
               {...xAxisStyle}
-              height={50}
-              tick={{ fontSize: 16 }}
-              interval={0}
+              height={30}
+              tick={{ fontSize: 11 }}
+              interval="preserveStartEnd"
             />
             <YAxis 
               {...yAxisStyle}
+              width={60}
               tickFormatter={(value) => 
                 new Intl.NumberFormat('pt-BR', {
                   notation: 'compact',
@@ -136,8 +130,8 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
                 name={s.name}
                 stroke={colors[index % colors.length]}
                 strokeWidth={2}
-                dot={{ r: 4 }}
-                activeDot={{ r: 6 }}
+                dot={{ r: 3 }}
+                activeDot={{ r: 5 }}
               />
             ))}
           </LineChart>
@@ -150,12 +144,13 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
             <XAxis 
               dataKey="name" 
               {...xAxisStyle}
-              height={50}
-              tick={{ fontSize: 16 }}
-              interval={0}
+              height={30}
+              tick={{ fontSize: 11 }}
+              interval="preserveStartEnd"
             />
             <YAxis 
               {...yAxisStyle}
+              width={60}
               tickFormatter={(value) => 
                 new Intl.NumberFormat('pt-BR', {
                   notation: 'compact',
@@ -185,12 +180,13 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
             <XAxis 
               dataKey="name" 
               {...xAxisStyle}
-              height={50}
-              tick={{ fontSize: 16 }}
-              interval={0}
+              height={30}
+              tick={{ fontSize: 11 }}
+              interval="preserveStartEnd"
             />
             <YAxis 
               {...yAxisStyle}
+              width={60}
               tickFormatter={(value) => 
                 new Intl.NumberFormat('pt-BR', {
                   notation: 'compact',
@@ -221,7 +217,7 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
   };
 
   return (
-    <ResponsiveContainer width="100%" height={300}>
+    <ResponsiveContainer width="100%" height="100%" minHeight={300}>
       {renderChart()}
     </ResponsiveContainer>
   );
