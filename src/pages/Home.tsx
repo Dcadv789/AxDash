@@ -12,7 +12,8 @@ import {
   CreditCard, 
   Wallet, 
   PiggyBank,
-  Building
+  Building,
+  Loader2
 } from 'lucide-react';
 
 const Home: React.FC = () => {
@@ -59,6 +60,46 @@ const Home: React.FC = () => {
     </div>
   );
 
+  const renderLoadingCard = () => (
+    <div className={`rounded-xl p-5 relative overflow-hidden transition-all duration-200 h-[140px] animate-pulse
+      ${isDark ? 'bg-[#151515]' : 'bg-white'}`}>
+      <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-indigo-500/50 to-indigo-600/50" />
+      <div className="flex items-center gap-3 mb-3">
+        <div className={`p-2 rounded-lg ${isDark ? 'bg-gray-800/80' : 'bg-gray-100'}`}>
+          <Loader2 className={`h-5 w-5 animate-spin ${isDark ? 'text-indigo-400' : 'text-indigo-600'}`} />
+        </div>
+        <div className={`h-4 w-24 rounded ${isDark ? 'bg-gray-800' : 'bg-gray-200'}`} />
+      </div>
+      <div className="space-y-2">
+        <div className={`h-8 w-36 rounded ${isDark ? 'bg-gray-800' : 'bg-gray-200'}`} />
+        <div className={`h-4 w-24 rounded ${isDark ? 'bg-gray-800' : 'bg-gray-200'}`} />
+      </div>
+    </div>
+  );
+
+  const renderLoadingChart = () => (
+    <div className={`h-full rounded-xl p-4 ${isDark ? 'bg-[#151515]' : 'bg-white'}`}>
+      <div className={`h-6 w-48 rounded mb-4 ${isDark ? 'bg-gray-800' : 'bg-gray-200'}`} />
+      <div className="h-[calc(100%-2.5rem)] flex items-center justify-center">
+        <Loader2 className={`h-8 w-8 animate-spin ${isDark ? 'text-gray-600' : 'text-gray-400'}`} />
+      </div>
+    </div>
+  );
+
+  const renderLoadingList = () => (
+    <div className={`rounded-xl p-6 h-full ${isDark ? 'bg-[#151515]' : 'bg-white'}`}>
+      <div className={`h-6 w-48 rounded mb-6 ${isDark ? 'bg-gray-800' : 'bg-gray-200'}`} />
+      <div className="space-y-2">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <div
+            key={i}
+            className={`h-12 rounded animate-pulse ${isDark ? 'bg-gray-800/50' : 'bg-gray-100'}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+
   return (
     <div className="h-full flex flex-col">
       <div className="px-6 flex items-center justify-between mb-4">
@@ -88,17 +129,18 @@ const Home: React.FC = () => {
       <div className="px-6 flex-1 flex flex-col gap-4 min-h-0 overflow-auto pb-6">
         {!selectedEmpresa ? (
           renderNoEmpresaSelected()
-        ) : loading ? (
-          <div className="flex items-center justify-center flex-1">
-            <p className={`text-lg ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-              Carregando visualizações...
-            </p>
-          </div>
         ) : (
           <>
-            {cardsVisualizacoes.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {cardsVisualizacoes
+            {/* Cards Section */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {loading ? (
+                Array(4).fill(0).map((_, i) => (
+                  <React.Fragment key={i}>
+                    {renderLoadingCard()}
+                  </React.Fragment>
+                ))
+              ) : (
+                cardsVisualizacoes
                   .sort((a, b) => a.ordem - b.ordem)
                   .map(visualizacao => (
                     <DashboardCard
@@ -112,56 +154,70 @@ const Home: React.FC = () => {
                         visualizacao.valor_anterior || 0
                       )}
                     />
-                  ))}
-              </div>
-            )}
+                  ))
+              )}
+            </div>
 
-            {graficoVisualizacoes.length > 0 && (
+            {/* Chart Section */}
+            {(loading || graficoVisualizacoes.length > 0) && (
               <div className="flex-1 h-[400px]">
-                {graficoVisualizacoes
-                  .sort((a, b) => a.ordem - b.ordem)
-                  .map(visualizacao => {
-                    if (!visualizacao.dados_grafico) return null;
+                {loading ? (
+                  renderLoadingChart()
+                ) : (
+                  graficoVisualizacoes
+                    .sort((a, b) => a.ordem - b.ordem)
+                    .map(visualizacao => {
+                      if (!visualizacao.dados_grafico) return null;
 
-                    const series = Object.keys(visualizacao.dados_grafico[0])
-                      .filter(key => key !== 'name')
-                      .map(key => ({
-                        dataKey: key,
-                        name: key
-                      }));
+                      const series = Object.keys(visualizacao.dados_grafico[0])
+                        .filter(key => key !== 'name')
+                        .map(key => ({
+                          dataKey: key,
+                          name: key
+                        }));
 
-                    return (
-                      <div
-                        key={visualizacao.id}
-                        className={`h-full rounded-xl p-4 ${isDark ? 'bg-[#151515]' : 'bg-white'}`}
-                      >
-                        <h3 className={`text-lg font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                          {visualizacao.nome_exibicao}
-                        </h3>
-                        <div className="h-[calc(100%-2.5rem)]">
-                          <DashboardChart
-                            type={visualizacao.tipo_grafico || 'line'}
-                            data={visualizacao.dados_grafico}
-                            series={series}
-                          />
+                      return (
+                        <div
+                          key={visualizacao.id}
+                          className={`h-full rounded-xl p-4 ${isDark ? 'bg-[#151515]' : 'bg-white'}`}
+                        >
+                          <h3 className={`text-lg font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                            {visualizacao.nome_exibicao}
+                          </h3>
+                          <div className="h-[calc(100%-2.5rem)]">
+                            <DashboardChart
+                              type={visualizacao.tipo_grafico || 'line'}
+                              data={visualizacao.dados_grafico}
+                              series={series}
+                            />
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })
+                )}
               </div>
             )}
 
-            {listaVisualizacoes.length > 0 && (
+            {/* Lists Section */}
+            {(loading || listaVisualizacoes.length > 0) && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {listaVisualizacoes
-                  .sort((a, b) => a.ordem - b.ordem)
-                  .map(visualizacao => (
-                    <DashboardList
-                      key={visualizacao.id}
-                      title={visualizacao.nome_exibicao}
-                      items={visualizacao.itens}
-                    />
-                  ))}
+                {loading ? (
+                  Array(2).fill(0).map((_, i) => (
+                    <React.Fragment key={i}>
+                      {renderLoadingList()}
+                    </React.Fragment>
+                  ))
+                ) : (
+                  listaVisualizacoes
+                    .sort((a, b) => a.ordem - b.ordem)
+                    .map(visualizacao => (
+                      <DashboardList
+                        key={visualizacao.id}
+                        title={visualizacao.nome_exibicao}
+                        items={visualizacao.itens}
+                      />
+                    ))
+                )}
               </div>
             )}
           </>

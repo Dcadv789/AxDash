@@ -1,11 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { getLancamentos, getTituloLancamento } from '../services/lancamentosService';
 
 interface Visualizacao {
   id: string;
   nome_exibicao: string;
-  descricao: string;
   tipo_visualizacao: 'card' | 'grafico' | 'lista';
   tipo_grafico?: 'line' | 'bar' | 'area';
   ordem: number;
@@ -15,9 +14,19 @@ interface Visualizacao {
   dados_grafico?: any[];
 }
 
+// Cache para armazenar os resultados das visualizações
+const visualizacoesCache = new Map<string, { data: Visualizacao[]; timestamp: number }>();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
+
 export const useVisualizacoes = (empresaId: string, mes: number, ano: number) => {
   const [visualizacoes, setVisualizacoes] = useState<Visualizacao[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Cria uma chave única para o cache baseada nos parâmetros
+  const cacheKey = useMemo(() => 
+    `${empresaId}-${mes}-${ano}`, 
+    [empresaId, mes, ano]
+  );
 
   useEffect(() => {
     const fetchVisualizacoes = async () => {
@@ -30,139 +39,72 @@ export const useVisualizacoes = (empresaId: string, mes: number, ano: number) =>
       try {
         setLoading(true);
 
-        // Busca as configurações de visualização
+        // Verifica o cache
+        const cached = visualizacoesCache.get(cacheKey);
+        if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+          setVisualizacoes(cached.data);
+          setLoading(false);
+          return;
+        }
+
+        // Busca as configurações de visualização com uma única query otimizada
         const { data: configVisualizacoes, error } = await supabase
           .from('config_visualizacoes')
           .select(`
-            *,
-            componentes:config_visualizacoes_componentes(
+            id,
+            nome_exibicao,
+            tipo_visualizacao,
+            tipo_grafico,
+            ordem,
+            componentes:config_visualizacoes_componentes (
               *,
-              categoria:categorias(id, nome),
-              indicador:indicadores(id, nome)
+              categoria:categorias (id, nome),
+              indicador:indicadores (id, nome)
             )
           `)
           .order('ordem');
 
         if (error) throw error;
 
-        // Para cada visualização, processa os dados
+        // Processa as visualizações em paralelo
         const visualizacoesProcessadas = await Promise.all(
           configVisualizacoes.map(async (config) => {
             const visualizacao: Visualizacao = {
               id: config.id,
               nome_exibicao: config.nome_exibicao,
-              descricao: config.descricao,
               tipo_visualizacao: config.tipo_visualizacao,
               tipo_grafico: config.tipo_grafico,
               ordem: config.ordem,
             };
 
-            // Processa os componentes associados
-            if (config.componentes) {
-              if (config.tipo_visualizacao === 'card') {
-                let valorAtual = 0;
-                let valorAnterior = 0;
+            if (!config.componentes) return visualizacao;
 
-                // Calcula o valor atual
-                for (const componente of config.componentes) {
-                  const lancamentosAtuais = await getLancamentos(mes, ano, {
-                    categoria_id: componente.categoria?.id,
-                    indicador_id: componente.indicador?.id,
-                    tabela_origem: componente.tabela_origem,
-                    todos: componente.todos,
-                  });
-
-                  valorAtual += lancamentosAtuais.reduce((acc, lanc) => {
-                    return acc + (lanc.tipo === 'Receita' ? lanc.valor : -lanc.valor);
-                  }, 0);
-
-                  // Calcula o valor do mês anterior
-                  const mesAnterior = mes === 0 ? 11 : mes - 1;
-                  const anoAnterior = mes === 0 ? ano - 1 : ano;
-                  
-                  const lancamentosAnteriores = await getLancamentos(mesAnterior, anoAnterior, {
-                    categoria_id: componente.categoria?.id,
-                    indicador_id: componente.indicador?.id,
-                    tabela_origem: componente.tabela_origem,
-                    todos: componente.todos,
-                  });
-
-                  valorAnterior += lancamentosAnteriores.reduce((acc, lanc) => {
-                    return acc + (lanc.tipo === 'Receita' ? lanc.valor : -lanc.valor);
-                  }, 0);
-                }
-
+            // Processa os diferentes tipos de visualização
+            switch (config.tipo_visualizacao) {
+              case 'card':
+                const { valorAtual, valorAnterior } = await processarCard(config.componentes, mes, ano);
                 visualizacao.valor_atual = valorAtual;
                 visualizacao.valor_anterior = valorAnterior;
-              } else if (config.tipo_visualizacao === 'lista') {
-                const itens = [];
+                break;
 
-                for (const componente of config.componentes) {
-                  const lancamentos = await getLancamentos(mes, ano, {
-                    categoria_id: componente.categoria?.id,
-                    indicador_id: componente.indicador?.id,
-                    tabela_origem: componente.tabela_origem,
-                    todos: componente.todos,
-                  });
+              case 'lista':
+                visualizacao.itens = await processarLista(config.componentes, mes, ano);
+                break;
 
-                  for (const lancamento of lancamentos) {
-                    itens.push({
-                      titulo: getTituloLancamento(lancamento),
-                      valor: lancamento.valor,
-                      tipo: lancamento.tipo,
-                    });
-                  }
-                }
-
-                visualizacao.itens = itens.sort((a, b) => b.valor - a.valor);
-              } else if (config.tipo_visualizacao === 'grafico') {
-                const dadosGrafico = [];
-
-                // Gera array com os últimos 13 meses
-                for (let i = 12; i >= 0; i--) {
-                  let mesAtual = mes - i;
-                  let anoAtual = ano;
-
-                  // Ajusta o mês e ano quando necessário
-                  while (mesAtual < 0) {
-                    mesAtual += 12;
-                    anoAtual--;
-                  }
-
-                  const dadosMes: any = {
-                    name: `${mesAtual + 1}/${anoAtual}`
-                  };
-
-                  // Para cada componente, busca os dados do mês
-                  for (const componente of config.componentes) {
-                    const lancamentos = await getLancamentos(mesAtual, anoAtual, {
-                      categoria_id: componente.categoria?.id,
-                      indicador_id: componente.indicador?.id,
-                      tabela_origem: componente.tabela_origem,
-                      todos: componente.todos,
-                    });
-
-                    const valor = lancamentos.reduce((acc, lanc) => {
-                      return acc + (lanc.tipo === 'Receita' ? lanc.valor : -lanc.valor);
-                    }, 0);
-
-                    const chave = componente.categoria?.nome || 
-                                componente.indicador?.nome || 
-                                'Total';
-
-                    dadosMes[chave] = valor;
-                  }
-
-                  dadosGrafico.push(dadosMes);
-                }
-
-                visualizacao.dados_grafico = dadosGrafico;
-              }
+              case 'grafico':
+                visualizacao.dados_grafico = await processarGrafico(config.componentes, mes, ano);
+                break;
             }
 
             return visualizacao;
           })
         );
+
+        // Atualiza o cache
+        visualizacoesCache.set(cacheKey, {
+          data: visualizacoesProcessadas,
+          timestamp: Date.now()
+        });
 
         setVisualizacoes(visualizacoesProcessadas);
       } catch (error) {
@@ -173,7 +115,122 @@ export const useVisualizacoes = (empresaId: string, mes: number, ano: number) =>
     };
 
     fetchVisualizacoes();
-  }, [empresaId, mes, ano]);
+  }, [cacheKey]);
 
   return { visualizacoes, loading };
 };
+
+// Funções auxiliares otimizadas
+async function processarCard(componentes: any[], mes: number, ano: number) {
+  let valorAtual = 0;
+  let valorAnterior = 0;
+
+  // Busca todos os lançamentos de uma vez
+  const mesAnterior = mes === 0 ? 11 : mes - 1;
+  const anoAnterior = mes === 0 ? ano - 1 : ano;
+
+  await Promise.all(componentes.map(async (componente) => {
+    const [lancamentosAtuais, lancamentosAnteriores] = await Promise.all([
+      getLancamentos(mes, ano, {
+        categoria_id: componente.categoria?.id,
+        indicador_id: componente.indicador?.id,
+        tabela_origem: componente.tabela_origem,
+        todos: componente.todos,
+      }),
+      getLancamentos(mesAnterior, anoAnterior, {
+        categoria_id: componente.categoria?.id,
+        indicador_id: componente.indicador?.id,
+        tabela_origem: componente.tabela_origem,
+        todos: componente.todos,
+      })
+    ]);
+
+    valorAtual += calcularSomaLancamentos(lancamentosAtuais);
+    valorAnterior += calcularSomaLancamentos(lancamentosAnteriores);
+  }));
+
+  return { valorAtual, valorAnterior };
+}
+
+async function processarLista(componentes: any[], mes: number, ano: number) {
+  const itens = [];
+
+  // Busca todos os lançamentos em paralelo
+  const lancamentosPorComponente = await Promise.all(
+    componentes.map(componente =>
+      getLancamentos(mes, ano, {
+        categoria_id: componente.categoria?.id,
+        indicador_id: componente.indicador?.id,
+        tabela_origem: componente.tabela_origem,
+        todos: componente.todos,
+      })
+    )
+  );
+
+  // Processa os resultados
+  lancamentosPorComponente.forEach(lancamentos => {
+    lancamentos.forEach(lancamento => {
+      itens.push({
+        titulo: getTituloLancamento(lancamento),
+        valor: lancamento.valor,
+        tipo: lancamento.tipo,
+      });
+    });
+  });
+
+  return itens.sort((a, b) => b.valor - a.valor);
+}
+
+async function processarGrafico(componentes: any[], mes: number, ano: number) {
+  const dadosGrafico = [];
+  const mesesProcessar = Array.from({ length: 13 }, (_, i) => {
+    let mesAtual = mes - (12 - i);
+    let anoAtual = ano;
+    while (mesAtual < 0) {
+      mesAtual += 12;
+      anoAtual--;
+    }
+    return { mes: mesAtual, ano: anoAtual };
+  });
+
+  // Busca dados para todos os meses em paralelo
+  const dadosPorMes = await Promise.all(
+    mesesProcessar.map(async ({ mes: mesAtual, ano: anoAtual }) => {
+      const dadosMes: any = {
+        name: `${mesAtual + 1}/${anoAtual}`
+      };
+
+      const lancamentosPorComponente = await Promise.all(
+        componentes.map(async (componente) => {
+          const lancamentos = await getLancamentos(mesAtual, anoAtual, {
+            categoria_id: componente.categoria?.id,
+            indicador_id: componente.indicador?.id,
+            tabela_origem: componente.tabela_origem,
+            todos: componente.todos,
+          });
+
+          const chave = componente.categoria?.nome || 
+                       componente.indicador?.nome || 
+                       'Total';
+
+          return { chave, valor: calcularSomaLancamentos(lancamentos) };
+        })
+      );
+
+      lancamentosPorComponente.forEach(({ chave, valor }) => {
+        dadosMes[chave] = valor;
+      });
+
+      return dadosMes;
+    })
+  );
+
+  return dadosPorMes;
+}
+
+function calcularSomaLancamentos(lancamentos: any[]) {
+  return lancamentos.reduce((acc, lanc) => 
+    acc + (lanc.tipo === 'Receita' ? lanc.valor : -lanc.valor), 
+    0
+  );
+}

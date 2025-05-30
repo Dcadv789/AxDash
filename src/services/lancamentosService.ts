@@ -27,6 +27,10 @@ interface ComponenteFiltro {
   todos?: boolean;
 }
 
+// Cache para armazenar os resultados das consultas
+const lancamentosCache = new Map<string, { data: Lancamento[]; timestamp: number }>();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
+
 export const getLancamentos = async (
   mes: number,
   ano: number,
@@ -34,6 +38,15 @@ export const getLancamentos = async (
 ) => {
   try {
     if (!filtros) return [];
+
+    // Cria uma chave única para o cache
+    const cacheKey = `${mes}-${ano}-${JSON.stringify(filtros)}`;
+    
+    // Verifica o cache
+    const cached = lancamentosCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+      return cached.data;
+    }
 
     // Normalize table name if it's 'indicador'
     const filtrosNormalizados = {
@@ -44,6 +57,7 @@ export const getLancamentos = async (
     const ids = await buscarIdsDisponiveis(filtrosNormalizados);
     if (ids.length === 0) return [];
 
+    // Otimiza a query do Supabase
     const query = supabase
       .from('lancamentos')
       .select(`
@@ -59,7 +73,7 @@ export const getLancamentos = async (
       .eq('mes', mes + 1)
       .eq('ano', ano);
 
-    // Se todos não for true, usa eq ao invés de in
+    // Aplica os filtros de forma otimizada
     if (filtrosNormalizados.todos !== true) {
       if (filtrosNormalizados.categoria_id) {
         query.eq('categoria_id', filtrosNormalizados.categoria_id);
@@ -71,18 +85,27 @@ export const getLancamentos = async (
         query.eq('cliente_id', filtrosNormalizados.cliente_id);
       }
     } else {
-      // Se todos for true, usa in com todos os IDs disponíveis
-      if (filtrosNormalizados.tabela_origem === 'categorias') {
-        query.in('categoria_id', ids);
-      } else if (filtrosNormalizados.tabela_origem === 'indicadores') {
-        query.in('indicador_id', ids);
-      } else if (filtrosNormalizados.tabela_origem === 'clientes') {
-        query.in('cliente_id', ids);
+      // Usa IN para consultas mais eficientes
+      const campo = {
+        categorias: 'categoria_id',
+        indicadores: 'indicador_id',
+        clientes: 'cliente_id'
+      }[filtrosNormalizados.tabela_origem as string];
+
+      if (campo) {
+        query.in(campo, ids);
       }
     }
 
     const { data, error } = await query;
     if (error) throw error;
+
+    // Atualiza o cache
+    lancamentosCache.set(cacheKey, {
+      data: data as Lancamento[],
+      timestamp: Date.now()
+    });
+
     return data as Lancamento[];
   } catch (error) {
     console.error('Erro ao buscar lançamentos:', error);
