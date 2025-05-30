@@ -60,7 +60,7 @@ const Home: React.FC = () => {
   );
 
   return (
-    <div className="h-[calc(100vh-6rem)] flex flex-col">
+    <div className="h-full flex flex-col">
       <div className="px-6 flex items-center justify-between mb-4">
         <div>
           <h1 className={`text-2xl font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
@@ -85,7 +85,7 @@ const Home: React.FC = () => {
         </div>
       </div>
 
-      <div className="px-6 flex-1 min-h-0 flex flex-col gap-4 overflow-hidden">
+      <div className="px-6 flex-1 flex flex-col gap-4 pb-6">
         {!selectedEmpresa ? (
           renderNoEmpresaSelected()
         ) : loading ? (
@@ -96,7 +96,6 @@ const Home: React.FC = () => {
           </div>
         ) : (
           <>
-            {/* Cards - Altura fixa */}
             {cardsVisualizacoes.length > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {cardsVisualizacoes
@@ -117,9 +116,8 @@ const Home: React.FC = () => {
               </div>
             )}
 
-            {/* Gráfico - Altura flexível */}
             {graficoVisualizacoes.length > 0 && (
-              <div className="flex-1 min-h-0">
+              <div className="flex-1">
                 {graficoVisualizacoes
                   .sort((a, b) => a.ordem - b.ordem)
                   .map(visualizacao => {
@@ -153,9 +151,8 @@ const Home: React.FC = () => {
               </div>
             )}
 
-            {/* Lista - Altura fixa */}
             {listaVisualizacoes.length > 0 && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-[280px]">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {listaVisualizacoes
                   .sort((a, b) => a.ordem - b.ordem)
                   .map(visualizacao => (
