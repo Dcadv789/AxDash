@@ -60,8 +60,8 @@ const Home: React.FC = () => {
   );
 
   return (
-    <div className="flex flex-col h-[calc(100vh-6rem)] pb-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="h-[calc(100vh-6rem)] flex flex-col">
+      <div className="px-6 flex items-center justify-between mb-4">
         <div>
           <h1 className={`text-2xl font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
             Dashboard
@@ -85,86 +85,91 @@ const Home: React.FC = () => {
         </div>
       </div>
 
-      {!selectedEmpresa ? (
-        renderNoEmpresaSelected()
-      ) : loading ? (
-        <div className="flex items-center justify-center flex-1">
-          <p className={`text-lg ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-            Carregando visualizações...
-          </p>
-        </div>
-      ) : (
-        <div className="flex flex-col flex-1 gap-6 min-h-0">
-          {cardsVisualizacoes.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {cardsVisualizacoes
-                .sort((a, b) => a.ordem - b.ordem)
-                .map(visualizacao => (
-                  <DashboardCard
-                    key={visualizacao.id}
-                    title={visualizacao.nome_exibicao}
-                    icon={getFinancialIcon(visualizacao.nome_exibicao)}
-                    currentValue={visualizacao.valor_atual || 0}
-                    previousValue={visualizacao.valor_anterior}
-                    variation={calculateVariation(
-                      visualizacao.valor_atual || 0,
-                      visualizacao.valor_anterior || 0
-                    )}
-                  />
-                ))}
-            </div>
-          )}
-
-          {graficoVisualizacoes.length > 0 && (
-            <div className="flex-1 min-h-0">
-              {graficoVisualizacoes
-                .sort((a, b) => a.ordem - b.ordem)
-                .map(visualizacao => {
-                  if (!visualizacao.dados_grafico) return null;
-
-                  const series = Object.keys(visualizacao.dados_grafico[0])
-                    .filter(key => key !== 'name')
-                    .map(key => ({
-                      dataKey: key,
-                      name: key
-                    }));
-
-                  return (
-                    <div
+      <div className="px-6 flex-1 min-h-0 flex flex-col gap-4 overflow-hidden">
+        {!selectedEmpresa ? (
+          renderNoEmpresaSelected()
+        ) : loading ? (
+          <div className="flex items-center justify-center flex-1">
+            <p className={`text-lg ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              Carregando visualizações...
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Cards - Altura fixa */}
+            {cardsVisualizacoes.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {cardsVisualizacoes
+                  .sort((a, b) => a.ordem - b.ordem)
+                  .map(visualizacao => (
+                    <DashboardCard
                       key={visualizacao.id}
-                      className={`h-full rounded-xl p-2 ${isDark ? 'bg-[#151515]' : 'bg-white'}`}
-                    >
-                      <h3 className={`text-lg font-semibold px-4 pt-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                        {visualizacao.nome_exibicao}
-                      </h3>
-                      <div className="h-[calc(100%-3rem)]">
-                        <DashboardChart
-                          type={visualizacao.tipo_grafico || 'line'}
-                          data={visualizacao.dados_grafico}
-                          series={series}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
-          )}
+                      title={visualizacao.nome_exibicao}
+                      icon={getFinancialIcon(visualizacao.nome_exibicao)}
+                      currentValue={visualizacao.valor_atual || 0}
+                      previousValue={visualizacao.valor_anterior}
+                      variation={calculateVariation(
+                        visualizacao.valor_atual || 0,
+                        visualizacao.valor_anterior || 0
+                      )}
+                    />
+                  ))}
+              </div>
+            )}
 
-          {listaVisualizacoes.length > 0 && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 min-h-0">
-              {listaVisualizacoes
-                .sort((a, b) => a.ordem - b.ordem)
-                .map(visualizacao => (
-                  <DashboardList
-                    key={visualizacao.id}
-                    title={visualizacao.nome_exibicao}
-                    items={visualizacao.itens}
-                  />
-                ))}
-            </div>
-          )}
-        </div>
-      )}
+            {/* Gráfico - Altura flexível */}
+            {graficoVisualizacoes.length > 0 && (
+              <div className="flex-1 min-h-0">
+                {graficoVisualizacoes
+                  .sort((a, b) => a.ordem - b.ordem)
+                  .map(visualizacao => {
+                    if (!visualizacao.dados_grafico) return null;
+
+                    const series = Object.keys(visualizacao.dados_grafico[0])
+                      .filter(key => key !== 'name')
+                      .map(key => ({
+                        dataKey: key,
+                        name: key
+                      }));
+
+                    return (
+                      <div
+                        key={visualizacao.id}
+                        className={`h-full rounded-xl p-4 ${isDark ? 'bg-[#151515]' : 'bg-white'}`}
+                      >
+                        <h3 className={`text-lg font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          {visualizacao.nome_exibicao}
+                        </h3>
+                        <div className="h-[calc(100%-2.5rem)]">
+                          <DashboardChart
+                            type={visualizacao.tipo_grafico || 'line'}
+                            data={visualizacao.dados_grafico}
+                            series={series}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+
+            {/* Lista - Altura fixa */}
+            {listaVisualizacoes.length > 0 && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-[280px]">
+                {listaVisualizacoes
+                  .sort((a, b) => a.ordem - b.ordem)
+                  .map(visualizacao => (
+                    <DashboardList
+                      key={visualizacao.id}
+                      title={visualizacao.nome_exibicao}
+                      items={visualizacao.itens}
+                    />
+                  ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 };
