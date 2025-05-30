@@ -37,14 +37,12 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
+  const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
   const chartProps = {
     data: data.map(item => ({
       ...item,
-      name: new Date(item.name.split('/')[1], ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'].indexOf(item.name.split('/')[0]), 1)
-        .toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' })
-        .replace(' de ', '/')
-        .replace('.', '')
-        .toUpperCase()
+      name: `${meses[new Date(item.name.split('/')[1], parseInt(item.name.split('/')[0]) - 1).getMonth()]}/${item.name.split('/')[1]}`
     }))
   };
 
@@ -106,7 +104,7 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
               dataKey="name" 
               {...xAxisStyle}
               height={30}
-              tick={{ fontSize: 11 }}
+              tick={{ fontSize: 13, fontWeight: 600, fill: '#3B82F6' }}
               interval="preserveStartEnd"
             />
             <YAxis 
@@ -145,7 +143,7 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
               dataKey="name" 
               {...xAxisStyle}
               height={30}
-              tick={{ fontSize: 11 }}
+              tick={{ fontSize: 13, fontWeight: 600, fill: '#3B82F6' }}
               interval="preserveStartEnd"
             />
             <YAxis 
@@ -181,7 +179,7 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
               dataKey="name" 
               {...xAxisStyle}
               height={30}
-              tick={{ fontSize: 11 }}
+              tick={{ fontSize: 13, fontWeight: 600, fill: '#3B82F6' }}
               interval="preserveStartEnd"
             />
             <YAxis 
@@ -217,7 +215,7 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
   };
 
   return (
-    <ResponsiveContainer width="100%" height="100%" minHeight={300}>
+    <ResponsiveContainer width="100%" height="100%">
       {renderChart()}
     </ResponsiveContainer>
   );

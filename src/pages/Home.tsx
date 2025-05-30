@@ -117,7 +117,7 @@ const Home: React.FC = () => {
             )}
 
             {graficoVisualizacoes.length > 0 && (
-              <div className="flex-1 min-h-[300px]">
+              <div className="flex-1 min-h-0">
                 {graficoVisualizacoes
                   .sort((a, b) => a.ordem - b.ordem)
                   .map(visualizacao => {
