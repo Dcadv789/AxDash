@@ -60,7 +60,7 @@ const Home: React.FC = () => {
   );
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="flex flex-col h-[calc(100vh-6rem)] pb-6">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className={`text-2xl font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
@@ -94,7 +94,7 @@ const Home: React.FC = () => {
           </p>
         </div>
       ) : (
-        <div className="grid grid-rows-[auto_350px_1fr] gap-6 h-[calc(100vh-180px)]">
+        <div className="flex flex-col flex-1 gap-6 min-h-0">
           {cardsVisualizacoes.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {cardsVisualizacoes
@@ -115,37 +115,43 @@ const Home: React.FC = () => {
             </div>
           )}
 
-          {graficoVisualizacoes.length > 0 && graficoVisualizacoes
-            .sort((a, b) => a.ordem - b.ordem)
-            .map(visualizacao => {
-              if (!visualizacao.dados_grafico) return null;
+          {graficoVisualizacoes.length > 0 && (
+            <div className="flex-1 min-h-0">
+              {graficoVisualizacoes
+                .sort((a, b) => a.ordem - b.ordem)
+                .map(visualizacao => {
+                  if (!visualizacao.dados_grafico) return null;
 
-              const series = Object.keys(visualizacao.dados_grafico[0])
-                .filter(key => key !== 'name')
-                .map(key => ({
-                  dataKey: key,
-                  name: key
-                }));
+                  const series = Object.keys(visualizacao.dados_grafico[0])
+                    .filter(key => key !== 'name')
+                    .map(key => ({
+                      dataKey: key,
+                      name: key
+                    }));
 
-              return (
-                <div
-                  key={visualizacao.id}
-                  className={`rounded-xl p-2 ${isDark ? 'bg-[#151515]' : 'bg-white'}`}
-                >
-                  <h3 className={`text-lg font-semibold px-4 pt-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    {visualizacao.nome_exibicao}
-                  </h3>
-                  <DashboardChart
-                    type={visualizacao.tipo_grafico || 'line'}
-                    data={visualizacao.dados_grafico}
-                    series={series}
-                  />
-                </div>
-              );
-            })}
+                  return (
+                    <div
+                      key={visualizacao.id}
+                      className={`h-full rounded-xl p-2 ${isDark ? 'bg-[#151515]' : 'bg-white'}`}
+                    >
+                      <h3 className={`text-lg font-semibold px-4 pt-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        {visualizacao.nome_exibicao}
+                      </h3>
+                      <div className="h-[calc(100%-3rem)]">
+                        <DashboardChart
+                          type={visualizacao.tipo_grafico || 'line'}
+                          data={visualizacao.dados_grafico}
+                          series={series}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          )}
 
           {listaVisualizacoes.length > 0 && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-0">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 min-h-0">
               {listaVisualizacoes
                 .sort((a, b) => a.ordem - b.ordem)
                 .map(visualizacao => (
