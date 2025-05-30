@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import EmpresaFilter from '../components/common/EmpresaFilter';
 import DateFilter from '../components/common/DateFilter';
 import DashboardCard from '../components/dashboard/DashboardCard';
 import DashboardList from '../components/dashboard/DashboardList';
-import { supabase } from '../lib/supabase';
+import { useVisualizacoes } from '../hooks/useVisualizacoes';
 import { 
   TrendingUp, 
   DollarSign, 
@@ -13,182 +13,20 @@ import {
   PiggyBank,
 } from 'lucide-react';
 
-interface ListItem {
-  titulo: string;
-  valor: number;
-  tipo: string;
-  variacao?: number;
-}
-
-interface Visualizacao {
-  id: string;
-  titulo: string;
-  descricao: string;
-  tipo: string;
-  ordem: number;
-  ativo: boolean;
-  nome_exibicao: string;
-  tipo_visualizacao: string;
-  valor_atual?: number;
-  valor_anterior?: number;
-  itens?: ListItem[];
-}
-
-interface Componente {
-  id: string;
-  categoria_id?: string;
-  indicador_id?: string;
-}
-
-interface Lancamento {
-  valor: number;
-  tipo: 'Receita' | 'Despesa';
-  descricao: string;
-}
-
 const Home: React.FC = () => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const [selectedEmpresa, setSelectedEmpresa] = useState('');
-  const [visualizacoes, setVisualizacoes] = useState<Visualizacao[]>([]);
-  const [loading, setLoading] = useState(true);
-
+  
   const hoje = new Date();
   const [selectedMonth, setSelectedMonth] = useState(hoje.getMonth());
   const [selectedYear, setSelectedYear] = useState(hoje.getFullYear());
 
-  const calcularValorRecursivo = async (
-    componente: Componente,
-    mes: number,
-    ano: number
-  ): Promise<Lancamento[]> => {
-    try {
-      const query = supabase
-        .from('lancamentos')
-        .select('valor, tipo, descricao')
-        .eq('mes', mes + 1)
-        .eq('ano', ano);
-
-      if (componente.categoria_id) {
-        query.eq('categoria_id', componente.categoria_id);
-      } else if (componente.indicador_id) {
-        query.eq('indicador_id', componente.indicador_id);
-      }
-
-      const { data: lancamentos, error } = await query;
-
-      if (error) {
-        console.error('Erro ao buscar lançamentos:', error);
-        return [];
-      }
-
-      return lancamentos || [];
-    } catch (error) {
-      console.error('Erro ao calcular valor:', error);
-      return [];
-    }
-  };
-
-  const calcularValorAnterior = async (
-    componente: Componente,
-    mes: number,
-    ano: number
-  ): Promise<Lancamento[]> => {
-    let mesAnterior = mes - 1;
-    let anoAnterior = ano;
-    
-    if (mesAnterior < 0) {
-      mesAnterior = 11;
-      anoAnterior--;
-    }
-
-    return calcularValorRecursivo(componente, mesAnterior, anoAnterior);
-  };
-
-  const fetchVisualizacoes = async () => {
-    try {
-      setLoading(true);
-      const { data: configVisualizacoes, error } = await supabase
-        .from('config_visualizacoes')
-        .select('*, config_visualizacoes_componentes(*)')
-        .eq('pagina', 'home')
-        .eq('ativo', true)
-        .order('ordem');
-
-      if (error) throw error;
-
-      const visualizacoesProcessadas = await Promise.all(
-        (configVisualizacoes || []).map(async (visualizacao) => {
-          let valorAtual = 0;
-          let valorAnterior = 0;
-          let itens: ListItem[] = [];
-
-          if (visualizacao.config_visualizacoes_componentes) {
-            for (const componente of visualizacao.config_visualizacoes_componentes) {
-              const lancamentosAtuais = await calcularValorRecursivo(
-                componente,
-                selectedMonth,
-                selectedYear
-              );
-              
-              const lancamentosAnteriores = await calcularValorAnterior(
-                componente,
-                selectedMonth,
-                selectedYear
-              );
-
-              // Calcula valores atuais e variação
-              lancamentosAtuais.forEach(lancamento => {
-                const valorLancamento = lancamento.tipo === 'Receita' ? lancamento.valor : -lancamento.valor;
-                valorAtual += valorLancamento;
-
-                if (visualizacao.tipo_visualizacao === 'lista') {
-                  // Encontra o valor anterior do mesmo lançamento para calcular a variação
-                  const lancamentoAnterior = lancamentosAnteriores.find(l => l.descricao === lancamento.descricao);
-                  const valorAnterior = lancamentoAnterior ? lancamentoAnterior.valor : 0;
-                  const variacao = valorAnterior ? ((lancamento.valor - valorAnterior) / valorAnterior) * 100 : 0;
-
-                  itens.push({
-                    titulo: lancamento.descricao,
-                    valor: Math.abs(lancamento.valor),
-                    tipo: lancamento.tipo,
-                    variacao
-                  });
-                }
-              });
-
-              // Calcula valor anterior
-              lancamentosAnteriores.forEach(lancamento => {
-                valorAnterior += lancamento.tipo === 'Receita' ? lancamento.valor : -lancamento.valor;
-              });
-            }
-
-            if (visualizacao.tipo_visualizacao === 'lista') {
-              itens.sort((a, b) => b.valor - a.valor);
-              itens = itens.slice(0, 10);
-            }
-          }
-
-          return {
-            ...visualizacao,
-            valor_atual: valorAtual,
-            valor_anterior: valorAnterior,
-            itens
-          };
-        })
-      );
-
-      setVisualizacoes(visualizacoesProcessadas);
-    } catch (error) {
-      console.error('Erro ao buscar visualizações:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchVisualizacoes();
-  }, [selectedEmpresa, selectedMonth, selectedYear]);
+  const { visualizacoes, loading } = useVisualizacoes(
+    selectedEmpresa,
+    selectedMonth,
+    selectedYear
+  );
 
   const calculateVariation = (atual: number, anterior: number) => {
     if (anterior === 0) return atual > 0 ? 100 : 0;
