@@ -8,19 +8,20 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isDark = theme === 'dark';
 
   return (
-    <div className={`min-h-screen flex justify-center ${theme === 'dark' ? 'bg-[#000000]' : 'bg-gray-100'}`}>
+    <div className={`h-screen flex justify-center ${theme === 'dark' ? 'bg-[#000000]' : 'bg-gray-100'}`}>
       <div className="max-w-[1920px] w-full px-6">
-        <div className="flex relative pt-6 pb-6">
+        <div className="flex relative h-full pt-4">
           <Sidebar />
           
-          <div className={`flex-grow transition-all duration-300 ${isSidebarCollapsed ? 'ml-28' : 'ml-64'} pt-[2px]`}>
-            <div className="fixed top-6 right-6 left-6 z-10">
-              <div className={`transition-all duration-300 ${isSidebarCollapsed ? 'ml-[7.5rem]' : 'ml-[17rem]'} mr-6`}>
-                <Topbar />
-              </div>
+          <div className={`flex-grow flex flex-col transition-all duration-300 ${isSidebarCollapsed ? 'ml-28' : 'ml-64'} pt-[2px]`}>
+            <div className="fixed top-4 z-10" style={{ 
+              left: `calc(${isSidebarCollapsed ? '7.5rem' : '17rem'} + 1.5rem)`,
+              right: '1.5rem'
+            }}>
+              <Topbar />
             </div>
             
-            <main className="mt-24 rounded-2xl overflow-hidden">
+            <main className="mt-20 flex-1 overflow-auto">
               {children}
             </main>
           </div>
@@ -28,6 +29,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       </div>
     </div>
   );
-};
+}
 
 export default Layout;
