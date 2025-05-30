@@ -13,6 +13,12 @@ import {
   PiggyBank,
 } from 'lucide-react';
 
+interface ListItem {
+  titulo: string;
+  valor: number;
+  tipo: string;
+}
+
 interface Visualizacao {
   id: string;
   titulo: string;
@@ -24,7 +30,7 @@ interface Visualizacao {
   tipo_visualizacao: string;
   valor_atual?: number;
   valor_anterior?: number;
-  itens?: { titulo: string; valor: number; tipo: string }[];
+  itens?: ListItem[];
 }
 
 interface Componente {
@@ -200,42 +206,40 @@ const Home: React.FC = () => {
   const listaVisualizacoes = visualizacoes.filter(v => v.tipo_visualizacao === 'lista');
 
   return (
-    <div className="h-full">
-      <div className="px-6 mb-6">
-        <h1 className={`text-2xl font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-          Dashboard
-        </h1>
-        <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-          Visualize e acompanhe os principais indicadores do seu negócio
-        </p>
-      </div>
+    <div className="h-full flex flex-col">
+      <div className="px-6 mb-6 flex items-start justify-between gap-6">
+        <div>
+          <h1 className={`text-2xl font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            Dashboard
+          </h1>
+          <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+            Visualize e acompanhe os principais indicadores do seu negócio
+          </p>
+        </div>
 
-      <div className={`mx-6 ${isDark ? 'bg-[#151515]' : 'bg-white'} py-4 px-6 rounded-xl mb-6`}>
-        <div className="flex items-center gap-4">
-          <div className="flex-1 flex items-center gap-4">
-            <EmpresaFilter
-              value={selectedEmpresa}
-              onChange={setSelectedEmpresa}
-              className="flex-1"
-            />
-            <DateFilter
-              selectedMonth={selectedMonth}
-              selectedYear={selectedYear}
-              onMonthChange={setSelectedMonth}
-              onYearChange={setSelectedYear}
-            />
-          </div>
+        <div className={`flex items-center gap-4 py-2 px-4 rounded-xl ${isDark ? 'bg-[#151515]' : 'bg-white'}`}>
+          <EmpresaFilter
+            value={selectedEmpresa}
+            onChange={setSelectedEmpresa}
+          />
+          <DateFilter
+            selectedMonth={selectedMonth}
+            selectedYear={selectedYear}
+            onMonthChange={setSelectedMonth}
+            onYearChange={setSelectedYear}
+          />
         </div>
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center h-64">
+        <div className="flex items-center justify-center flex-1">
           <p className={`text-lg ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
             Carregando visualizações...
           </p>
         </div>
       ) : (
-        <div className="px-6 space-y-6">
+        <div className="px-6 flex-1 flex flex-col min-h-0 space-y-6">
+          {/* Cards - 4 colunas */}
           {cardsVisualizacoes.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {cardsVisualizacoes
@@ -256,30 +260,28 @@ const Home: React.FC = () => {
             </div>
           )}
 
-          {graficoVisualizacoes.length > 0 && (
-            <div className="space-y-6">
-              {graficoVisualizacoes
-                .sort((a, b) => a.ordem - b.ordem)
-                .map(visualizacao => (
-                  <div
-                    key={visualizacao.id}
-                    className={`rounded-xl p-6 ${isDark ? 'bg-[#151515]' : 'bg-white'}`}
-                  >
-                    <h3 className={`text-lg font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                      {visualizacao.nome_exibicao}
-                    </h3>
-                    <div className="h-[300px] flex items-center justify-center">
-                      <p className={`text-lg ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                        Área do gráfico: {visualizacao.descricao}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-            </div>
-          )}
+          {/* Gráfico - 1 coluna */}
+          {graficoVisualizacoes.length > 0 && graficoVisualizacoes
+            .sort((a, b) => a.ordem - b.ordem)
+            .map(visualizacao => (
+              <div
+                key={visualizacao.id}
+                className={`rounded-xl p-6 ${isDark ? 'bg-[#151515]' : 'bg-white'}`}
+              >
+                <h3 className={`text-lg font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  {visualizacao.nome_exibicao}
+                </h3>
+                <div className="h-[300px] flex items-center justify-center">
+                  <p className={`text-lg ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Área do gráfico: {visualizacao.descricao}
+                  </p>
+                </div>
+              </div>
+            ))}
 
+          {/* Listas - 2 colunas */}
           {listaVisualizacoes.length > 0 && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 min-h-0">
               {listaVisualizacoes
                 .sort((a, b) => a.ordem - b.ordem)
                 .map(visualizacao => (
