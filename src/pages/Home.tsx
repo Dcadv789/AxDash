@@ -17,6 +17,7 @@ interface ListItem {
   titulo: string;
   valor: number;
   tipo: string;
+  variacao?: number;
 }
 
 interface Visualizacao {
@@ -120,7 +121,7 @@ const Home: React.FC = () => {
         (configVisualizacoes || []).map(async (visualizacao) => {
           let valorAtual = 0;
           let valorAnterior = 0;
-          let itens: { titulo: string; valor: number; tipo: string }[] = [];
+          let itens: ListItem[] = [];
 
           if (visualizacao.config_visualizacoes_componentes) {
             for (const componente of visualizacao.config_visualizacoes_componentes) {
@@ -136,28 +137,29 @@ const Home: React.FC = () => {
                 selectedYear
               );
 
+              // Calcula valores atuais e variação
               lancamentosAtuais.forEach(lancamento => {
-                if (lancamento.tipo === 'Receita') {
-                  valorAtual += lancamento.valor;
-                } else if (lancamento.tipo === 'Despesa') {
-                  valorAtual -= lancamento.valor;
-                }
+                const valorLancamento = lancamento.tipo === 'Receita' ? lancamento.valor : -lancamento.valor;
+                valorAtual += valorLancamento;
 
                 if (visualizacao.tipo_visualizacao === 'lista') {
+                  // Encontra o valor anterior do mesmo lançamento para calcular a variação
+                  const lancamentoAnterior = lancamentosAnteriores.find(l => l.descricao === lancamento.descricao);
+                  const valorAnterior = lancamentoAnterior ? lancamentoAnterior.valor : 0;
+                  const variacao = valorAnterior ? ((lancamento.valor - valorAnterior) / valorAnterior) * 100 : 0;
+
                   itens.push({
                     titulo: lancamento.descricao,
                     valor: Math.abs(lancamento.valor),
-                    tipo: lancamento.tipo
+                    tipo: lancamento.tipo,
+                    variacao
                   });
                 }
               });
 
+              // Calcula valor anterior
               lancamentosAnteriores.forEach(lancamento => {
-                if (lancamento.tipo === 'Receita') {
-                  valorAnterior += lancamento.valor;
-                } else if (lancamento.tipo === 'Despesa') {
-                  valorAnterior -= lancamento.valor;
-                }
+                valorAnterior += lancamento.tipo === 'Receita' ? lancamento.valor : -lancamento.valor;
               });
             }
 
@@ -207,7 +209,7 @@ const Home: React.FC = () => {
 
   return (
     <div className="h-full flex flex-col">
-      <div className="px-6 mb-6 flex items-start justify-between gap-6">
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className={`text-2xl font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
             Dashboard
@@ -238,8 +240,7 @@ const Home: React.FC = () => {
           </p>
         </div>
       ) : (
-        <div className="px-6 flex-1 flex flex-col min-h-0 space-y-6">
-          {/* Cards - 4 colunas */}
+        <div className="flex-1 flex flex-col min-h-0 space-y-6">
           {cardsVisualizacoes.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {cardsVisualizacoes
@@ -260,7 +261,6 @@ const Home: React.FC = () => {
             </div>
           )}
 
-          {/* Gráfico - 1 coluna */}
           {graficoVisualizacoes.length > 0 && graficoVisualizacoes
             .sort((a, b) => a.ordem - b.ordem)
             .map(visualizacao => (
@@ -279,7 +279,6 @@ const Home: React.FC = () => {
               </div>
             ))}
 
-          {/* Listas - 2 colunas */}
           {listaVisualizacoes.length > 0 && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 min-h-0">
               {listaVisualizacoes
