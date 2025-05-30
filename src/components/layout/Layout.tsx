@@ -14,9 +14,13 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           <Sidebar />
           
           <div className={`flex-grow transition-all duration-300 ${isSidebarCollapsed ? 'ml-28' : 'ml-64'} pt-[2px]`}>
-            <Topbar />
+            <div className="fixed top-6 right-6 left-0 z-10">
+              <div className={`transition-all duration-300 ${isSidebarCollapsed ? 'ml-[7.5rem]' : 'ml-[17rem]'}`}>
+                <Topbar />
+              </div>
+            </div>
             
-            <main className="mt-4">
+            <main className="mt-24">
               {children}
             </main>
           </div>
