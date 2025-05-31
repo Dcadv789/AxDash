@@ -62,6 +62,7 @@ export const useVisualizacoes = (empresaId: string, mes: number, ano: number) =>
               indicador:indicadores (id, nome)
             )
           `)
+          .eq('pagina', 'home') // Adiciona o filtro de página
           .order('ordem');
 
         if (error) throw error;
