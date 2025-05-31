@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, LayoutDashboard, FileText } from 'lucide-react';
+import { Home, LayoutDashboard, FileText, ShoppingCart } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -15,6 +15,7 @@ const Navigation: React.FC<NavigationProps> = ({ collapsed }) => {
 
   const menuItems = [
     { id: 'home', label: 'Home', icon: Home, path: '/' },
+    { id: 'vendas', label: 'Vendas', icon: ShoppingCart, path: '/vendas' },
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
     { id: 'cadastros', label: 'Cadastros', icon: FileText, path: '/cadastros' },
   ];

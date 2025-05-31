@@ -18,14 +18,14 @@ interface Visualizacao {
 const visualizacoesCache = new Map<string, { data: Visualizacao[]; timestamp: number }>();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
 
-export const useVisualizacoes = (empresaId: string, mes: number, ano: number) => {
+export const useVisualizacoes = (empresaId: string, mes: number, ano: number, pagina: string = 'home') => {
   const [visualizacoes, setVisualizacoes] = useState<Visualizacao[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Cria uma chave única para o cache baseada nos parâmetros
   const cacheKey = useMemo(() => 
-    `${empresaId}-${mes}-${ano}`, 
-    [empresaId, mes, ano]
+    `${empresaId}-${mes}-${ano}-${pagina}`, 
+    [empresaId, mes, ano, pagina]
   );
 
   useEffect(() => {
@@ -62,7 +62,7 @@ export const useVisualizacoes = (empresaId: string, mes: number, ano: number) =>
               indicador:indicadores (id, nome)
             )
           `)
-          .eq('pagina', 'home') // Adiciona o filtro de página
+          .eq('pagina', pagina)
           .order('ordem');
 
         if (error) throw error;

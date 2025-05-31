@@ -5,6 +5,7 @@ import Login from './pages/Login';
 import Profile from './pages/Profile';
 import Cadastros from './pages/Cadastros';
 import Home from './pages/Home';
+import Vendas from './pages/Vendas';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 
 function App() {
@@ -17,6 +18,7 @@ function App() {
             <Layout>
               <Routes>
                 <Route index element={<Home />} />
+                <Route path="vendas" element={<Vendas />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="cadastros" element={<Cadastros />} />
               </Routes>
@@ -24,6 +26,7 @@ function App() {
           </ProtectedRoute>
         }>
           <Route path="/" />
+          <Route path="/vendas" />
           <Route path="/profile" />
           <Route path="/cadastros" />
         </Route>
