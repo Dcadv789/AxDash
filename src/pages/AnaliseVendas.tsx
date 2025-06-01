@@ -5,7 +5,7 @@ import DateFilter from '../components/common/DateFilter';
 import DashboardCard from '../components/dashboard/DashboardCard';
 import DashboardChart from '../components/dashboard/DashboardChart';
 import { DollarSign, Users, Target, TrendingUp, Building, Loader2 } from 'lucide-react';
-import { Treemap, ResponsiveContainer } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import EmpresaFilter from '../components/common/EmpresaFilter';
 
 interface Pessoa {
@@ -61,7 +61,7 @@ const AnaliseVendas: React.FC = () => {
   const [treemapData, setTreemapData] = useState<VendedorVendas[]>([]);
   const [treemapOrigemData, setTreemapOrigemData] = useState<VendedorVendas[]>([]);
 
-  // Array de cores para o treemap
+  // Array de cores para os gráficos
   const COLORS = [
     '#4F46E5', '#10B981', '#F59E0B', '#EF4444', 
     '#8B5CF6', '#EC4899', '#6366F1', '#14B8A6',
@@ -276,40 +276,25 @@ const AnaliseVendas: React.FC = () => {
     }
   };
 
-  const CustomTreemapContent = ({ root, depth, x, y, width, height, name, value, index }: any) => {
-    const percentage = ((value / root.value) * 100).toFixed(1);
-    
+  // Componente personalizado para o tooltip do gráfico de pizza
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (!active || !payload || !payload.length) return null;
+
     return (
-      <g>
-        <rect
-          x={x}
-          y={y}
-          width={width}
-          height={height}
-          fill={COLORS[index % COLORS.length]}
-          opacity={0.8}
-        />
-        {width > 50 && height > 50 && (
-          <text
-            x={x + width / 2}
-            y={y + height / 2}
-            textAnchor="middle"
-            fill={isDark ? '#fff' : '#000'}
-            fontSize={14}
-          >
-            <tspan x={x + width / 2} dy="-0.5em">{name}</tspan>
-            <tspan x={x + width / 2} dy="1.5em">
-              {new Intl.NumberFormat('pt-BR', {
-                style: 'currency',
-                currency: 'BRL'
-              }).format(value)}
-            </tspan>
-            <tspan x={x + width / 2} dy="1.2em">
-              ({percentage}%)
-            </tspan>
-          </text>
-        )}
-      </g>
+      <div className={`p-3 rounded-lg shadow-lg ${isDark ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'}`}>
+        <p className={`text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+          {payload[0].name}
+        </p>
+        <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+          {new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+          }).format(payload[0].value)}
+        </p>
+        <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+          {`${((payload[0].value / payload[0].payload.totalValue) * 100).toFixed(1)}%`}
+        </p>
+      </div>
     );
   };
 
@@ -468,11 +453,27 @@ const AnaliseVendas: React.FC = () => {
                 </div>
                 <div className="h-[calc(100%-2.5rem)]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <Treemap
-                      data={treemapData}
-                      dataKey="value"
-                      content={<CustomTreemapContent />}
-                    />
+                    <PieChart>
+                      <Pie
+                        data={treemapData.map(item => ({
+                          ...item,
+                          totalValue: treemapData.reduce((acc, i) => acc + i.value, 0)
+                        }))}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={120}
+                        labelLine={false}
+                        label={({ name, percent }) => `${name} (${(percent * 100).toFixed(1)}%)`}
+                      >
+                        {treemapData.map((_, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip content={CustomTooltip} />
+                      <Legend />
+                    </PieChart>
                   </ResponsiveContainer>
                 </div>
               </div>
@@ -491,11 +492,27 @@ const AnaliseVendas: React.FC = () => {
                 </div>
                 <div className="h-[calc(100%-2.5rem)]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <Treemap
-                      data={treemapOrigemData}
-                      dataKey="value"
-                      content={<CustomTreemapContent />}
-                    />
+                    <PieChart>
+                      <Pie
+                        data={treemapOrigemData.map(item => ({
+                          ...item,
+                          totalValue: treemapOrigemData.reduce((acc, i) => acc + i.value, 0)
+                        }))}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={120}
+                        labelLine={false}
+                        label={({ name, percent }) => `${name} (${(percent * 100).toFixed(1)}%)`}
+                      >
+                        {treemapOrigemData.map((_, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip content={CustomTooltip} />
+                      <Legend />
+                    </PieChart>
                   </ResponsiveContainer>
                 </div>
               </div>
