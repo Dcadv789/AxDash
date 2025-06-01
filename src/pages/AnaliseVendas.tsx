@@ -6,6 +6,7 @@ import DashboardCard from '../components/dashboard/DashboardCard';
 import DashboardChart from '../components/dashboard/DashboardChart';
 import { DollarSign, Users, Target, TrendingUp, Building, Loader2 } from 'lucide-react';
 import { Treemap, ResponsiveContainer } from 'recharts';
+import EmpresaFilter from '../components/common/EmpresaFilter';
 
 interface Pessoa {
   id: string;
@@ -40,6 +41,7 @@ const AnaliseVendas: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [vendedores, setVendedores] = useState<Pessoa[]>([]);
   const [sdrs, setSDRs] = useState<Pessoa[]>([]);
+  const [selectedEmpresa, setSelectedEmpresa] = useState('');
   const [selectedVendedor, setSelectedVendedor] = useState('');
   const [selectedSDR, setSelectedSDR] = useState('');
   
@@ -323,10 +325,16 @@ const AnaliseVendas: React.FC = () => {
         </div>
 
         <div className={`flex items-center gap-4 py-2 px-4 rounded-xl ${isDark ? 'bg-[#151515]' : 'bg-white'}`}>
+          <EmpresaFilter
+            value={selectedEmpresa}
+            onChange={setSelectedEmpresa}
+            className="min-w-[200px]"
+          />
+
           <select
             value={selectedVendedor}
             onChange={(e) => setSelectedVendedor(e.target.value)}
-            className={`px-3 py-2 rounded-lg ${
+            className={`min-w-[180px] px-3 py-2 rounded-lg appearance-none pr-8 ${
               isDark
                 ? 'bg-gray-800 text-white border-gray-700'
                 : 'bg-gray-50 text-gray-900 border-gray-300'
@@ -343,7 +351,7 @@ const AnaliseVendas: React.FC = () => {
           <select
             value={selectedSDR}
             onChange={(e) => setSelectedSDR(e.target.value)}
-            className={`px-3 py-2 rounded-lg ${
+            className={`min-w-[180px] px-3 py-2 rounded-lg appearance-none pr-8 ${
               isDark
                 ? 'bg-gray-800 text-white border-gray-700'
                 : 'bg-gray-50 text-gray-900 border-gray-300'
@@ -416,21 +424,6 @@ const AnaliseVendas: React.FC = () => {
                 currentValue={vendasData.metaAtingida}
                 variation={15}
               />
-            </div>
-
-            <div className="flex-1 h-[400px]">
-              <div className={`h-full rounded-xl p-4 ${isDark ? 'bg-[#151515]' : 'bg-white'}`}>
-                <div className="h-full">
-                  <DashboardChart
-                    type="line"
-                    data={chartData}
-                    series={[
-                      { dataKey: 'vendas', name: 'Vendas' },
-                      { dataKey: 'meta', name: 'Meta' }
-                    ]}
-                  />
-                </div>
-              </div>
             </div>
 
             <div className="h-[400px]">
