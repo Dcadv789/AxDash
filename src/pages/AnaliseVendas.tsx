@@ -274,6 +274,8 @@ const AnaliseVendas: React.FC = () => {
   };
 
   const CustomTreemapContent = ({ root, depth, x, y, width, height, name, value, index }: any) => {
+    const percentage = ((value / root.value) * 100).toFixed(1);
+    
     return (
       <g>
         <rect
@@ -298,6 +300,9 @@ const AnaliseVendas: React.FC = () => {
                 style: 'currency',
                 currency: 'BRL'
               }).format(value)}
+            </tspan>
+            <tspan x={x + width / 2} dy="1.2em">
+              ({percentage}%)
             </tspan>
           </text>
         )}
@@ -455,10 +460,18 @@ const AnaliseVendas: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-[400px]">
-              <div className={`h-full rounded-xl p-4 ${isDark ? 'bg-[#151515]' : 'bg-white'}`}>
+              <div className={`h-full rounded-xl p-4 relative ${isDark ? 'bg-[#151515]' : 'bg-white'}`}>
                 <h3 className={`text-lg font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   Distribuição de Vendas por Vendedor
                 </h3>
+                <div className="absolute top-4 right-4 text-sm">
+                  <span className={isDark ? 'text-gray-400' : 'text-gray-600'}>
+                    Total: {new Intl.NumberFormat('pt-BR', {
+                      style: 'currency',
+                      currency: 'BRL'
+                    }).format(treemapData.reduce((acc, item) => acc + item.value, 0))}
+                  </span>
+                </div>
                 <div className="h-[calc(100%-2.5rem)]">
                   <ResponsiveContainer width="100%" height="100%">
                     <Treemap
@@ -470,10 +483,18 @@ const AnaliseVendas: React.FC = () => {
                 </div>
               </div>
 
-              <div className={`h-full rounded-xl p-4 ${isDark ? 'bg-[#151515]' : 'bg-white'}`}>
+              <div className={`h-full rounded-xl p-4 relative ${isDark ? 'bg-[#151515]' : 'bg-white'}`}>
                 <h3 className={`text-lg font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   Distribuição de Vendas por Origem
                 </h3>
+                <div className="absolute top-4 right-4 text-sm">
+                  <span className={isDark ? 'text-gray-400' : 'text-gray-600'}>
+                    Total: {new Intl.NumberFormat('pt-BR', {
+                      style: 'currency',
+                      currency: 'BRL'
+                    }).format(treemapOrigemData.reduce((acc, item) => acc + item.value, 0))}
+                  </span>
+                </div>
                 <div className="h-[calc(100%-2.5rem)]">
                   <ResponsiveContainer width="100%" height="100%">
                     <Treemap
