@@ -40,7 +40,6 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
   const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
   const formatarNomeMes = (dataString: string) => {
-    // Return the original string if it doesn't contain a forward slash
     if (!dataString?.includes('/')) {
       return dataString;
     }
@@ -48,7 +47,7 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
     const [mes, ano] = dataString.split('/');
     const mesIndex = parseInt(mes) - 1;
     if (mesIndex >= 0 && mesIndex < 12) {
-      return `${meses[mesIndex]}/${ano}`;
+      return `${meses[mesIndex]}/${ano.slice(-2)}`;
     }
     return dataString;
   };
@@ -119,8 +118,10 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
               {...xAxisStyle}
               height={30}
               tick={{ fontSize: 13, fontWeight: 600, fill: '#3B82F6' }}
-              interval="preserveStartEnd"
-              dy={10}
+              interval={0}
+              angle={0}
+              dy={8}
+              textAnchor="middle"
             />
             <YAxis 
               {...yAxisStyle}
@@ -160,8 +161,10 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
               {...xAxisStyle}
               height={30}
               tick={{ fontSize: 13, fontWeight: 600, fill: '#3B82F6' }}
-              interval="preserveStartEnd"
-              dy={10}
+              interval={0}
+              angle={0}
+              dy={8}
+              textAnchor="middle"
             />
             <YAxis 
               {...yAxisStyle}
@@ -198,8 +201,10 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
               {...xAxisStyle}
               height={30}
               tick={{ fontSize: 13, fontWeight: 600, fill: '#3B82F6' }}
-              interval="preserveStartEnd"
-              dy={10}
+              interval={0}
+              angle={0}
+              dy={8}
+              textAnchor="middle"
             />
             <YAxis 
               {...yAxisStyle}

@@ -136,8 +136,9 @@ const AnaliseVendas: React.FC = () => {
             vendasPorVendedor[vendedorNome] = (vendasPorVendedor[vendedorNome] || 0) + venda.valor;
           });
 
+          const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
           return {
-            mes: `${String(mes + 1).padStart(2, '0')}/${ano}`,
+            name: `${meses[mes]}/${String(ano).slice(-2)}`,
             ...vendasPorVendedor
           };
         })
@@ -439,7 +440,7 @@ const AnaliseVendas: React.FC = () => {
                       Array.from(
                         new Set(
                           vendasPorVendedor.flatMap(data => 
-                            Object.keys(data).filter(key => key !== 'mes')
+                            Object.keys(data).filter(key => key !== 'mes' && key !== 'name')
                           )
                         )
                       ).map(vendedor => ({
