@@ -8,6 +8,7 @@ import Home from './pages/Home';
 import Vendas from './pages/Vendas';
 import Analise from './pages/Analise';
 import AnaliseVendas from './pages/AnaliseVendas';
+import Graficos from './pages/Graficos';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 
 function App() {
@@ -23,6 +24,7 @@ function App() {
                 <Route path="vendas" element={<Vendas />} />
                 <Route path="analise" element={<Analise />} />
                 <Route path="analise-vendas" element={<AnaliseVendas />} />
+                <Route path="graficos" element={<Graficos />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="cadastros" element={<Cadastros />} />
               </Routes>
@@ -33,6 +35,7 @@ function App() {
           <Route path="/vendas" />
           <Route path="/analise" />
           <Route path="/analise-vendas" />
+          <Route path="/graficos" />
           <Route path="/profile" />
           <Route path="/cadastros" />
         </Route>
