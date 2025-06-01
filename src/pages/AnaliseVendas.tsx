@@ -5,6 +5,7 @@ import DateFilter from '../components/common/DateFilter';
 import DashboardCard from '../components/dashboard/DashboardCard';
 import DashboardChart from '../components/dashboard/DashboardChart';
 import { DollarSign, Users, Target, TrendingUp, Building, Loader2 } from 'lucide-react';
+import { Treemap, ResponsiveContainer } from 'recharts';
 
 interface Pessoa {
   id: string;
@@ -28,6 +29,11 @@ interface VendaData {
   };
 }
 
+interface VendedorVendas {
+  name: string;
+  value: number;
+}
+
 const AnaliseVendas: React.FC = () => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -44,11 +50,13 @@ const AnaliseVendas: React.FC = () => {
   const [vendasData, setVendasData] = useState({
     totalVendas: 0,
     mediaVendas: 0,
-    taxaConversao: 0,
+    quantidadeVendas: 0,
     metaAtingida: 0,
   });
 
   const [chartData, setChartData] = useState<any[]>([]);
+  const [vendasPorVendedor, setVendasPorVendedor] = useState<any[]>([]);
+  const [treemapData, setTreemapData] = useState<VendedorVendas[]>([]);
 
   useEffect(() => {
     fetchPessoas();
@@ -56,18 +64,18 @@ const AnaliseVendas: React.FC = () => {
 
   useEffect(() => {
     fetchVendasData();
+    fetchVendasPorVendedor();
+    fetchTreemapData();
   }, [selectedVendedor, selectedSDR, selectedMonth, selectedYear]);
 
   const fetchPessoas = async () => {
     try {
-      // Busca pessoas que são vendedores
       const { data: vendedoresData } = await supabase
         .from('pessoas')
         .select('id, nome')
         .or('cargo.eq.Vendedor,cargo.eq.Ambos')
         .order('nome');
 
-      // Busca pessoas que são SDRs
       const { data: sdrsData } = await supabase
         .from('pessoas')
         .select('id, nome')
@@ -81,10 +89,96 @@ const AnaliseVendas: React.FC = () => {
     }
   };
 
+  const fetchVendasPorVendedor = async () => {
+    try {
+      const ultimosMeses = [];
+      for (let i = 0; i < 13; i++) {
+        let mes = selectedMonth - i;
+        let ano = selectedYear;
+        while (mes < 0) {
+          mes += 12;
+          ano--;
+        }
+        ultimosMeses.push({ mes, ano });
+      }
+
+      const vendasPorMes = await Promise.all(
+        ultimosMeses.map(async ({ mes, ano }) => {
+          const startDate = `${ano}-${String(mes + 1).padStart(2, '0')}-01`;
+          const endDate = mes === 11 
+            ? `${ano + 1}-01-01`
+            : `${ano}-${String(mes + 2).padStart(2, '0')}-01`;
+
+          const { data: vendas } = await supabase
+            .from('registro_de_vendas')
+            .select(`
+              valor,
+              data_venda,
+              vendedor:vendedor_id(id, nome)
+            `)
+            .gte('data_venda', startDate)
+            .lt('data_venda', endDate);
+
+          const vendasPorVendedor = {};
+          vendas?.forEach(venda => {
+            const vendedorNome = venda.vendedor?.nome || 'Sem vendedor';
+            vendasPorVendedor[vendedorNome] = (vendasPorVendedor[vendedorNome] || 0) + venda.valor;
+          });
+
+          return {
+            mes: `${String(mes + 1).padStart(2, '0')}/${ano}`,
+            ...vendasPorVendedor
+          };
+        })
+      );
+
+      setVendasPorVendedor(vendasPorMes.reverse());
+    } catch (error) {
+      console.error('Erro ao buscar vendas por vendedor:', error);
+    }
+  };
+
+  const fetchTreemapData = async () => {
+    try {
+      const startDate = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-01`;
+      const endDate = selectedMonth === 11 
+        ? `${selectedYear + 1}-01-01`
+        : `${selectedYear}-${String(selectedMonth + 2).padStart(2, '0')}-01`;
+
+      const { data: vendas } = await supabase
+        .from('registro_de_vendas')
+        .select(`
+          valor,
+          vendedor:vendedor_id(id, nome)
+        `)
+        .gte('data_venda', startDate)
+        .lt('data_venda', endDate);
+
+      const vendasPorVendedor = {};
+      vendas?.forEach(venda => {
+        const vendedorNome = venda.vendedor?.nome || 'Sem vendedor';
+        vendasPorVendedor[vendedorNome] = (vendasPorVendedor[vendedorNome] || 0) + venda.valor;
+      });
+
+      const treemapData = Object.entries(vendasPorVendedor).map(([name, value]) => ({
+        name,
+        value
+      }));
+
+      setTreemapData(treemapData);
+    } catch (error) {
+      console.error('Erro ao buscar dados do treemap:', error);
+    }
+  };
+
   const fetchVendasData = async () => {
     setLoading(true);
     try {
-      // Construir a query base
+      const startDate = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-01`;
+      const endDate = selectedMonth === 11 
+        ? `${selectedYear + 1}-01-01`
+        : `${selectedYear}-${String(selectedMonth + 2).padStart(2, '0')}-01`;
+
       let query = supabase
         .from('registro_de_vendas')
         .select(`
@@ -94,8 +188,8 @@ const AnaliseVendas: React.FC = () => {
           servico:servico_id(nome),
           cliente:cliente_id(razao_social)
         `)
-        .gte('data_venda', `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-01`)
-        .lt('data_venda', `${selectedYear}-${String(selectedMonth + 2).padStart(2, '0')}-01`);
+        .gte('data_venda', startDate)
+        .lt('data_venda', endDate);
 
       if (selectedVendedor) {
         query = query.eq('vendedor_id', selectedVendedor);
@@ -110,11 +204,10 @@ const AnaliseVendas: React.FC = () => {
         const totalVendas = vendas.reduce((acc, venda) => acc + venda.valor, 0);
         const mediaVendas = totalVendas / (vendas.length || 1);
 
-        // Processamento dos dados para o gráfico
         const vendasPorDia = vendas.reduce((acc: any, venda) => {
           const dia = new Date(venda.data_venda).getDate();
           if (!acc[dia]) {
-            acc[dia] = { vendas: 0, meta: 1000 }; // Meta diária fixa para exemplo
+            acc[dia] = { vendas: 0, meta: 1000 };
           }
           acc[dia].vendas += venda.valor;
           return acc;
@@ -130,8 +223,8 @@ const AnaliseVendas: React.FC = () => {
         setVendasData({
           totalVendas,
           mediaVendas,
-          taxaConversao: (vendas.length / 100) * 100, // Exemplo simplificado
-          metaAtingida: (totalVendas / 100000) * 100, // Meta fixa para exemplo
+          quantidadeVendas: vendas.length,
+          metaAtingida: (totalVendas / 100000) * 100,
         });
       }
     } catch (error) {
@@ -139,6 +232,38 @@ const AnaliseVendas: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const CustomTreemapContent = ({ root, depth, x, y, width, height, name, value }: any) => {
+    return (
+      <g>
+        <rect
+          x={x}
+          y={y}
+          width={width}
+          height={height}
+          fill={isDark ? '#4F46E5' : '#6366F1'}
+          opacity={depth === 1 ? 0.8 : 0.3}
+        />
+        {width > 50 && height > 50 && (
+          <text
+            x={x + width / 2}
+            y={y + height / 2}
+            textAnchor="middle"
+            fill={isDark ? '#fff' : '#000'}
+            fontSize={14}
+          >
+            <tspan x={x + width / 2} dy="-0.5em">{name}</tspan>
+            <tspan x={x + width / 2} dy="1.5em">
+              {new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+              }).format(value)}
+            </tspan>
+          </text>
+        )}
+      </g>
+    );
   };
 
   return (
@@ -236,14 +361,14 @@ const AnaliseVendas: React.FC = () => {
                 variation={5}
               />
               <DashboardCard
-                title="Taxa de Conversão"
-                icon={Target}
-                currentValue={vendasData.taxaConversao}
-                variation={-2}
+                title="Quantidade de Vendas"
+                icon={Users}
+                currentValue={vendasData.quantidadeVendas}
+                variation={15}
               />
               <DashboardCard
                 title="Meta Atingida"
-                icon={Users}
+                icon={Target}
                 currentValue={vendasData.metaAtingida}
                 variation={15}
               />
@@ -251,10 +376,7 @@ const AnaliseVendas: React.FC = () => {
 
             <div className="flex-1 h-[400px]">
               <div className={`h-full rounded-xl p-4 ${isDark ? 'bg-[#151515]' : 'bg-white'}`}>
-                <h3 className={`text-lg font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  Desempenho de Vendas
-                </h3>
-                <div className="h-[calc(100%-2.5rem)]">
+                <div className="h-full">
                   <DashboardChart
                     type="line"
                     data={chartData}
@@ -263,6 +385,49 @@ const AnaliseVendas: React.FC = () => {
                       { dataKey: 'meta', name: 'Meta' }
                     ]}
                   />
+                </div>
+              </div>
+            </div>
+
+            <div className="h-[400px]">
+              <div className={`h-full rounded-xl p-4 ${isDark ? 'bg-[#151515]' : 'bg-white'}`}>
+                <h3 className={`text-lg font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Vendas por Vendedor - Últimos 13 Meses
+                </h3>
+                <div className="h-[calc(100%-2.5rem)]">
+                  <DashboardChart
+                    type="line"
+                    data={vendasPorVendedor}
+                    series={
+                      Array.from(
+                        new Set(
+                          vendasPorVendedor.flatMap(data => 
+                            Object.keys(data).filter(key => key !== 'mes')
+                          )
+                        )
+                      ).map(vendedor => ({
+                        dataKey: vendedor,
+                        name: vendedor
+                      }))
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="h-[400px]">
+              <div className={`h-full rounded-xl p-4 ${isDark ? 'bg-[#151515]' : 'bg-white'}`}>
+                <h3 className={`text-lg font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Distribuição de Vendas por Vendedor
+                </h3>
+                <div className="h-[calc(100%-2.5rem)]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <Treemap
+                      data={treemapData}
+                      dataKey="value"
+                      content={<CustomTreemapContent />}
+                    />
+                  </ResponsiveContainer>
                 </div>
               </div>
             </div>

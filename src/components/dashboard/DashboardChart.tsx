@@ -40,6 +40,11 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
   const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
   const formatarNomeMes = (dataString: string) => {
+    // Return the original string if it doesn't contain a forward slash
+    if (!dataString?.includes('/')) {
+      return dataString;
+    }
+
     const [mes, ano] = dataString.split('/');
     const mesIndex = parseInt(mes) - 1;
     if (mesIndex >= 0 && mesIndex < 12) {
