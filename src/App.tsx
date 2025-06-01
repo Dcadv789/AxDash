@@ -7,6 +7,7 @@ import Cadastros from './pages/Cadastros';
 import Home from './pages/Home';
 import Vendas from './pages/Vendas';
 import Analise from './pages/Analise';
+import AnaliseVendas from './pages/AnaliseVendas';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 
 function App() {
@@ -21,6 +22,7 @@ function App() {
                 <Route index element={<Home />} />
                 <Route path="vendas" element={<Vendas />} />
                 <Route path="analise" element={<Analise />} />
+                <Route path="analise-vendas" element={<AnaliseVendas />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="cadastros" element={<Cadastros />} />
               </Routes>
@@ -30,6 +32,7 @@ function App() {
           <Route path="/" />
           <Route path="/vendas" />
           <Route path="/analise" />
+          <Route path="/analise-vendas" />
           <Route path="/profile" />
           <Route path="/cadastros" />
         </Route>
