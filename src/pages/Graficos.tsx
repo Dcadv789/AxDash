@@ -4,7 +4,7 @@ import EmpresaFilter from '../components/common/EmpresaFilter';
 import DateFilter from '../components/common/DateFilter';
 import DashboardChart from '../components/dashboard/DashboardChart';
 import { useVisualizacoes } from '../hooks/useVisualizacoes';
-import { Building, Loader2 } from 'lucide-react';
+import { Building, Loader2, ChevronDown, Check } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface Componente {
@@ -19,6 +19,7 @@ const Graficos: React.FC = () => {
   const isDark = theme === 'dark';
   const [selectedEmpresa, setSelectedEmpresa] = useState('');
   const [componentesPorGrafico, setComponentesPorGrafico] = useState<Record<string, Componente[]>>({});
+  const [menuAberto, setMenuAberto] = useState<string | null>(null);
   
   const hoje = new Date();
   const [selectedMonth, setSelectedMonth] = useState(hoje.getMonth());
@@ -81,6 +82,19 @@ const Graficos: React.FC = () => {
     };
 
     fetchComponentes();
+  }, []);
+
+  useEffect(() => {
+    // Fecha o menu quando clicar fora
+    const handleClickFora = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.menu-dropdown')) {
+        setMenuAberto(null);
+      }
+    };
+
+    document.addEventListener('click', handleClickFora);
+    return () => document.removeEventListener('click', handleClickFora);
   }, []);
 
   const handleComponenteToggle = (visualizacaoId: string, componenteId: string) => {
@@ -159,6 +173,8 @@ const Graficos: React.FC = () => {
 
                 const componentesDisponiveis = componentesPorGrafico[visualizacao.id] || [];
                 const componentesSelecionados = componentesDisponiveis.filter(c => c.selected);
+                const todosComponentesSelecionados = componentesDisponiveis.length === componentesSelecionados.length;
+                const algunsComponentesSelecionados = componentesSelecionados.length > 0;
 
                 const series = componentesSelecionados.map(componente => ({
                   dataKey: componente.nome,
@@ -172,23 +188,89 @@ const Graficos: React.FC = () => {
                         <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                           {visualizacao.nome_exibicao}
                         </h3>
-                        <div className="flex items-center gap-3">
-                          {componentesDisponiveis.map(componente => (
-                            <label
-                              key={componente.id}
-                              className="flex items-center gap-2 cursor-pointer"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={componente.selected}
-                                onChange={() => handleComponenteToggle(visualizacao.id, componente.id)}
-                                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                              />
-                              <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                                {componente.nome}
-                              </span>
-                            </label>
-                          ))}
+                        
+                        <div className="relative menu-dropdown">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setMenuAberto(menuAberto === visualizacao.id ? null : visualizacao.id);
+                            }}
+                            className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors
+                              ${isDark 
+                                ? 'hover:bg-gray-800 text-gray-300' 
+                                : 'hover:bg-gray-100 text-gray-600'}`}
+                          >
+                            <span className="text-sm">
+                              {componentesSelecionados.length} componente{componentesSelecionados.length !== 1 ? 's' : ''} selecionado{componentesSelecionados.length !== 1 ? 's' : ''}
+                            </span>
+                            <ChevronDown className={`h-4 w-4 transition-transform ${menuAberto === visualizacao.id ? 'rotate-180' : ''}`} />
+                          </button>
+
+                          {menuAberto === visualizacao.id && (
+                            <div className={`absolute right-0 top-full mt-1 w-64 rounded-lg shadow-lg z-10 py-1
+                              ${isDark ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'}`}>
+                              <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-700">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setComponentesPorGrafico(prev => ({
+                                      ...prev,
+                                      [visualizacao.id]: prev[visualizacao.id].map(comp => ({
+                                        ...comp,
+                                        selected: !todosComponentesSelecionados
+                                      }))
+                                    }));
+                                  }}
+                                  className={`flex items-center gap-2 w-full text-left text-sm
+                                    ${isDark ? 'text-gray-300' : 'text-gray-600'}`}
+                                >
+                                  <div className={`w-4 h-4 rounded border flex items-center justify-center
+                                    ${todosComponentesSelecionados
+                                      ? 'bg-indigo-600 border-indigo-600'
+                                      : algunsComponentesSelecionados
+                                        ? 'bg-indigo-600/50 border-indigo-600'
+                                        : isDark
+                                          ? 'border-gray-600'
+                                          : 'border-gray-300'
+                                    }`}>
+                                    {todosComponentesSelecionados && (
+                                      <Check className="h-3 w-3 text-white" />
+                                    )}
+                                  </div>
+                                  <span>Selecionar todos</span>
+                                </button>
+                              </div>
+                              
+                              <div className="py-1">
+                                {componentesDisponiveis.map(componente => (
+                                  <button
+                                    key={componente.id}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleComponenteToggle(visualizacao.id, componente.id);
+                                    }}
+                                    className={`flex items-center gap-2 w-full px-3 py-2 text-sm transition-colors
+                                      ${isDark
+                                        ? 'hover:bg-gray-700 text-gray-300'
+                                        : 'hover:bg-gray-100 text-gray-600'}`}
+                                  >
+                                    <div className={`w-4 h-4 rounded border flex items-center justify-center
+                                      ${componente.selected
+                                        ? 'bg-indigo-600 border-indigo-600'
+                                        : isDark
+                                          ? 'border-gray-600'
+                                          : 'border-gray-300'
+                                      }`}>
+                                      {componente.selected && (
+                                        <Check className="h-3 w-3 text-white" />
+                                      )}
+                                    </div>
+                                    <span>{componente.nome}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div className="h-[350px]">
