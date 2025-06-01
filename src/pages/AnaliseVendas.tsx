@@ -5,7 +5,7 @@ import DateFilter from '../components/common/DateFilter';
 import DashboardCard from '../components/dashboard/DashboardCard';
 import DashboardChart from '../components/dashboard/DashboardChart';
 import { DollarSign, Users, Target, TrendingUp, Building, Loader2 } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import EmpresaFilter from '../components/common/EmpresaFilter';
 
 interface Pessoa {
@@ -298,6 +298,34 @@ const AnaliseVendas: React.FC = () => {
     );
   };
 
+  // Função para formatar o label do gráfico de pizza
+  const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, value, name }: any) => {
+    const RADIAN = Math.PI / 180;
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+    
+    const formattedValue = new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+      notation: 'compact',
+      maximumFractionDigits: 1
+    }).format(value);
+
+    return (
+      <text
+        x={x}
+        y={y}
+        fill={isDark ? "white" : "black"}
+        textAnchor={x > cx ? 'start' : 'end'}
+        dominantBaseline="central"
+        className="text-xs"
+      >
+        {`${name} (${(percent * 100).toFixed(1)}% - ${formattedValue})`}
+      </text>
+    );
+  };
+
   return (
     <div className="h-full flex flex-col">
       <div className="px-6 flex items-center justify-between mb-4">
@@ -465,14 +493,13 @@ const AnaliseVendas: React.FC = () => {
                         cy="50%"
                         outerRadius={120}
                         labelLine={false}
-                        label={({ name, percent }) => `${name} (${(percent * 100).toFixed(1)}%)`}
+                        label={renderCustomizedLabel}
                       >
                         {treemapData.map((_, index) => (
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
                       <Tooltip content={CustomTooltip} />
-                      <Legend />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
@@ -504,14 +531,13 @@ const AnaliseVendas: React.FC = () => {
                         cy="50%"
                         outerRadius={120}
                         labelLine={false}
-                        label={({ name, percent }) => `${name} (${(percent * 100).toFixed(1)}%)`}
+                        label={renderCustomizedLabel}
                       >
                         {treemapOrigemData.map((_, index) => (
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
                       <Tooltip content={CustomTooltip} />
-                      <Legend />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>

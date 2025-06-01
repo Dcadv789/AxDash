@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Building, ChevronDown } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
+import { useUser } from '../../context/UserContext';
 import { supabase } from '../../lib/supabase';
 
 interface Empresa {
@@ -16,6 +17,7 @@ interface EmpresaFilterProps {
 
 const EmpresaFilter: React.FC<EmpresaFilterProps> = ({ value, onChange, className = '' }) => {
   const { theme } = useTheme();
+  const { user } = useUser();
   const isDark = theme === 'dark';
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,13 +25,28 @@ const EmpresaFilter: React.FC<EmpresaFilterProps> = ({ value, onChange, classNam
   useEffect(() => {
     async function fetchEmpresas() {
       try {
-        const { data, error } = await supabase
+        // Se o usuário for cliente, força o valor da empresa dele
+        if (user?.role === 'cliente' && user?.empresa_id) {
+          const { data } = await supabase
+            .from('empresas')
+            .select('id, razao_social')
+            .eq('id', user.empresa_id)
+            .single();
+
+          if (data) {
+            setEmpresas([data]);
+            onChange(data.id); // Força a seleção da empresa do cliente
+          }
+          return;
+        }
+
+        // Para outros tipos de usuário, busca todas as empresas
+        const { data } = await supabase
           .from('empresas')
           .select('id, razao_social')
           .order('razao_social');
 
-        if (error) throw error;
-        setEmpresas(data || []);
+        if (data) setEmpresas(data);
       } catch (error) {
         console.error('Erro ao buscar empresas:', error);
       } finally {
@@ -38,7 +55,12 @@ const EmpresaFilter: React.FC<EmpresaFilterProps> = ({ value, onChange, classNam
     }
 
     fetchEmpresas();
-  }, []);
+  }, [user, onChange]);
+
+  // Se for cliente, não mostra o filtro
+  if (user?.role === 'cliente') {
+    return null;
+  }
 
   return (
     <div className={`relative min-w-[240px] max-w-[320px] w-auto ${className}`}>
