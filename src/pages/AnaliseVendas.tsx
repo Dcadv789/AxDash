@@ -57,6 +57,14 @@ const AnaliseVendas: React.FC = () => {
   const [chartData, setChartData] = useState<any[]>([]);
   const [vendasPorVendedor, setVendasPorVendedor] = useState<any[]>([]);
   const [treemapData, setTreemapData] = useState<VendedorVendas[]>([]);
+  const [treemapOrigemData, setTreemapOrigemData] = useState<VendedorVendas[]>([]);
+
+  // Array de cores para o treemap
+  const COLORS = [
+    '#4F46E5', '#10B981', '#F59E0B', '#EF4444', 
+    '#8B5CF6', '#EC4899', '#6366F1', '#14B8A6',
+    '#F97316', '#06B6D4', '#84CC16', '#A855F7'
+  ];
 
   useEffect(() => {
     fetchPessoas();
@@ -66,6 +74,7 @@ const AnaliseVendas: React.FC = () => {
     fetchVendasData();
     fetchVendasPorVendedor();
     fetchTreemapData();
+    fetchTreemapOrigemData();
   }, [selectedVendedor, selectedSDR, selectedMonth, selectedYear]);
 
   const fetchPessoas = async () => {
@@ -171,6 +180,36 @@ const AnaliseVendas: React.FC = () => {
     }
   };
 
+  const fetchTreemapOrigemData = async () => {
+    try {
+      const startDate = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-01`;
+      const endDate = selectedMonth === 11 
+        ? `${selectedYear + 1}-01-01`
+        : `${selectedYear}-${String(selectedMonth + 2).padStart(2, '0')}-01`;
+
+      const { data: vendas } = await supabase
+        .from('registro_de_vendas')
+        .select('valor, origem')
+        .gte('data_venda', startDate)
+        .lt('data_venda', endDate);
+
+      const vendasPorOrigem = {};
+      vendas?.forEach(venda => {
+        const origem = venda.origem || 'Não especificada';
+        vendasPorOrigem[origem] = (vendasPorOrigem[origem] || 0) + venda.valor;
+      });
+
+      const treemapData = Object.entries(vendasPorOrigem).map(([name, value]) => ({
+        name,
+        value
+      }));
+
+      setTreemapOrigemData(treemapData);
+    } catch (error) {
+      console.error('Erro ao buscar dados do treemap por origem:', error);
+    }
+  };
+
   const fetchVendasData = async () => {
     setLoading(true);
     try {
@@ -234,7 +273,7 @@ const AnaliseVendas: React.FC = () => {
     }
   };
 
-  const CustomTreemapContent = ({ root, depth, x, y, width, height, name, value }: any) => {
+  const CustomTreemapContent = ({ root, depth, x, y, width, height, name, value, index }: any) => {
     return (
       <g>
         <rect
@@ -242,8 +281,8 @@ const AnaliseVendas: React.FC = () => {
           y={y}
           width={width}
           height={height}
-          fill={isDark ? '#4F46E5' : '#6366F1'}
-          opacity={depth === 1 ? 0.8 : 0.3}
+          fill={COLORS[index % COLORS.length]}
+          opacity={0.8}
         />
         {width > 50 && height > 50 && (
           <text
@@ -415,7 +454,7 @@ const AnaliseVendas: React.FC = () => {
               </div>
             </div>
 
-            <div className="h-[400px]">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-[400px]">
               <div className={`h-full rounded-xl p-4 ${isDark ? 'bg-[#151515]' : 'bg-white'}`}>
                 <h3 className={`text-lg font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   Distribuição de Vendas por Vendedor
@@ -424,6 +463,21 @@ const AnaliseVendas: React.FC = () => {
                   <ResponsiveContainer width="100%" height="100%">
                     <Treemap
                       data={treemapData}
+                      dataKey="value"
+                      content={<CustomTreemapContent />}
+                    />
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div className={`h-full rounded-xl p-4 ${isDark ? 'bg-[#151515]' : 'bg-white'}`}>
+                <h3 className={`text-lg font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Distribuição de Vendas por Origem
+                </h3>
+                <div className="h-[calc(100%-2.5rem)]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <Treemap
+                      data={treemapOrigemData}
                       dataKey="value"
                       content={<CustomTreemapContent />}
                     />
