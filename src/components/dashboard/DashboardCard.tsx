@@ -19,7 +19,13 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
 }) => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-  const isPositive = variation && variation > 0;
+
+  // Calcula a variação se não foi fornecida e temos um valor anterior
+  const calculatedVariation = variation ?? (previousValue !== undefined && previousValue !== 0
+    ? ((currentValue - previousValue) / Math.abs(previousValue)) * 100
+    : (currentValue > 0 ? 100 : 0));
+
+  const isPositive = calculatedVariation > 0;
   const ArrowIcon = isPositive ? ArrowUpRight : ArrowDownRight;
 
   const formatCurrency = (value: number) => {
@@ -55,14 +61,14 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
             </p>
           )}
         </div>
-        {variation !== undefined && variation !== 0 && (
+        {previousValue !== undefined && calculatedVariation !== 0 && (
           <div className="flex flex-col items-end">
             <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-sm font-medium
               ${isPositive 
                 ? 'text-green-500 bg-green-500/10' 
                 : 'text-red-500 bg-red-500/10'}`}>
               <ArrowIcon className="h-4 w-4" />
-              <span>{Math.abs(variation).toFixed(1)}%</span>
+              <span>{Math.abs(calculatedVariation).toFixed(1)}%</span>
             </div>
             <span className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
               vs. mês anterior

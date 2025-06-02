@@ -83,7 +83,7 @@ export const useVisualizacoes = (empresaId: string, mes: number, ano: number, pa
             // Processa os diferentes tipos de visualização
             switch (config.tipo_visualizacao) {
               case 'card':
-                const { valorAtual, valorAnterior } = await processarCard(config.componentes, mes, ano);
+                const { valorAtual, valorAnterior } = await processarCard(config.componentes, mes, ano, config.ordem);
                 visualizacao.valor_atual = valorAtual;
                 visualizacao.valor_anterior = valorAnterior;
                 break;
@@ -122,33 +122,86 @@ export const useVisualizacoes = (empresaId: string, mes: number, ano: number, pa
 };
 
 // Funções auxiliares otimizadas
-async function processarCard(componentes: any[], mes: number, ano: number) {
+async function processarCard(componentes: any[], mes: number, ano: number, ordem: number) {
   let valorAtual = 0;
   let valorAnterior = 0;
 
-  // Busca todos os lançamentos de uma vez
-  const mesAnterior = mes === 0 ? 11 : mes - 1;
-  const anoAnterior = mes === 0 ? ano - 1 : ano;
+  // Se a ordem for 5, calcula o saldo acumulado
+  if (ordem === 5) {
+    // Calcula todos os meses até o mês atual
+    for (let anoAtual = 2024; anoAtual <= ano; anoAtual++) {
+      const mesInicial = anoAtual === 2024 ? 0 : 0;
+      const mesFinal = anoAtual === ano ? mes : 11;
 
-  await Promise.all(componentes.map(async (componente) => {
-    const [lancamentosAtuais, lancamentosAnteriores] = await Promise.all([
-      getLancamentos(mes, ano, {
-        categoria_id: componente.categoria?.id,
-        indicador_id: componente.indicador?.id,
-        tabela_origem: componente.tabela_origem,
-        todos: componente.todos,
-      }),
-      getLancamentos(mesAnterior, anoAnterior, {
-        categoria_id: componente.categoria?.id,
-        indicador_id: componente.indicador?.id,
-        tabela_origem: componente.tabela_origem,
-        todos: componente.todos,
-      })
-    ]);
+      for (let mesAtual = mesInicial; mesAtual <= mesFinal; mesAtual++) {
+        const lancamentosMes = await Promise.all(
+          componentes.map(componente =>
+            getLancamentos(mesAtual, anoAtual, {
+              categoria_id: componente.categoria?.id,
+              indicador_id: componente.indicador?.id,
+              tabela_origem: componente.tabela_origem,
+              todos: componente.todos,
+            })
+          )
+        );
 
-    valorAtual += calcularSomaLancamentos(lancamentosAtuais);
-    valorAnterior += calcularSomaLancamentos(lancamentosAnteriores);
-  }));
+        valorAtual += lancamentosMes.flat().reduce((acc, lanc) => 
+          acc + (lanc.tipo === 'Receita' ? lanc.valor : -lanc.valor), 
+          0
+        );
+      }
+    }
+
+    // Para o valor anterior, calculamos até o mês anterior
+    if (mes > 0) {
+      for (let anoAtual = 2024; anoAtual <= ano; anoAtual++) {
+        const mesInicial = anoAtual === 2024 ? 0 : 0;
+        const mesFinal = anoAtual === ano ? mes - 1 : 11;
+
+        for (let mesAtual = mesInicial; mesAtual <= mesFinal; mesAtual++) {
+          const lancamentosMes = await Promise.all(
+            componentes.map(componente =>
+              getLancamentos(mesAtual, anoAtual, {
+                categoria_id: componente.categoria?.id,
+                indicador_id: componente.indicador?.id,
+                tabela_origem: componente.tabela_origem,
+                todos: componente.todos,
+              })
+            )
+          );
+
+          valorAnterior += lancamentosMes.flat().reduce((acc, lanc) => 
+            acc + (lanc.tipo === 'Receita' ? lanc.valor : -lanc.valor), 
+            0
+          );
+        }
+      }
+    }
+  } else {
+    // Para outras ordens, mantém o comportamento original
+    const mesAnterior = mes === 0 ? 11 : mes - 1;
+    const anoAnterior = mes === 0 ? ano - 1 : ano;
+
+    await Promise.all(componentes.map(async (componente) => {
+      const [lancamentosAtuais, lancamentosAnteriores] = await Promise.all([
+        getLancamentos(mes, ano, {
+          categoria_id: componente.categoria?.id,
+          indicador_id: componente.indicador?.id,
+          tabela_origem: componente.tabela_origem,
+          todos: componente.todos,
+        }),
+        getLancamentos(mesAnterior, anoAnterior, {
+          categoria_id: componente.categoria?.id,
+          indicador_id: componente.indicador?.id,
+          tabela_origem: componente.tabela_origem,
+          todos: componente.todos,
+        })
+      ]);
+
+      valorAtual += calcularSomaLancamentos(lancamentosAtuais);
+      valorAnterior += calcularSomaLancamentos(lancamentosAnteriores);
+    }));
+  }
 
   return { valorAtual, valorAnterior };
 }
