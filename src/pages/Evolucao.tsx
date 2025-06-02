@@ -1,36 +1,160 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import EmpresaFilter from '../components/common/EmpresaFilter';
 import DateFilter from '../components/common/DateFilter';
-import DashboardChart from '../components/dashboard/DashboardChart';
-import { useVisualizacoes } from '../hooks/useVisualizacoes';
-import { Building, Loader2, ChevronDown, Check } from 'lucide-react';
+import { Building, Loader2, TrendingUp, TrendingDown } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
-interface Componente {
+interface Despesa {
+  categoria: string;
+  valorAtual: number;
+  valorAnterior: number;
+  variacao: number;
+}
+
+interface Venda {
   id: string;
-  nome: string;
-  tabela_origem: string;
-  selected?: boolean;
+  valor: number;
+  cliente: {
+    razao_social: string;
+  };
+  vendedor: {
+    nome: string;
+  };
 }
 
 const Evolucao: React.FC = () => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const [selectedEmpresa, setSelectedEmpresa] = useState('');
-  const [menuAberto, setMenuAberto] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [despesas, setDespesas] = useState<Despesa[]>([]);
+  const [vendas, setVendas] = useState<Venda[]>([]);
   
   const hoje = new Date();
   const [selectedMonth, setSelectedMonth] = useState(hoje.getMonth());
   const [selectedYear, setSelectedYear] = useState(hoje.getFullYear());
 
-  const { visualizacoes, loading } = useVisualizacoes(
-    selectedEmpresa,
-    selectedMonth,
-    selectedYear,
-    'tabelas'
-  );
+  useEffect(() => {
+    if (!selectedEmpresa) {
+      setDespesas([]);
+      setVendas([]);
+      setLoading(false);
+      return;
+    }
 
-  const graficoVisualizacoes = visualizacoes.filter(v => v.tipo_visualizacao === 'grafico');
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        // Calcula o mês anterior
+        const mesAnterior = selectedMonth === 0 ? 12 : selectedMonth;
+        const anoAnterior = selectedMonth === 0 ? selectedYear - 1 : selectedYear;
+
+        // Busca as despesas do mês atual
+        const { data: despesasAtuais } = await supabase
+          .from('lancamentos')
+          .select(`
+            valor,
+            categoria:categorias(nome)
+          `)
+          .eq('tipo', 'Despesa')
+          .eq('mes', selectedMonth + 1)
+          .eq('ano', selectedYear)
+          .not('categoria', 'is', null); // Filtra apenas registros com categoria
+
+        // Busca as despesas do mês anterior
+        const { data: despesasAnteriores } = await supabase
+          .from('lancamentos')
+          .select(`
+            valor,
+            categoria:categorias(nome)
+          `)
+          .eq('tipo', 'Despesa')
+          .eq('mes', mesAnterior)
+          .eq('ano', anoAnterior)
+          .not('categoria', 'is', null); // Filtra apenas registros com categoria
+
+        // Processa as despesas
+        const despesasMap = new Map<string, Despesa>();
+
+        // Processa despesas atuais
+        despesasAtuais?.forEach(item => {
+          if (!item.categoria?.nome) return; // Ignora itens sem categoria
+          const categoria = item.categoria.nome;
+          if (!despesasMap.has(categoria)) {
+            despesasMap.set(categoria, {
+              categoria,
+              valorAtual: 0,
+              valorAnterior: 0,
+              variacao: 0
+            });
+          }
+          const despesa = despesasMap.get(categoria)!;
+          despesa.valorAtual += item.valor;
+        });
+
+        // Processa despesas anteriores
+        despesasAnteriores?.forEach(item => {
+          if (!item.categoria?.nome) return; // Ignora itens sem categoria
+          const categoria = item.categoria.nome;
+          if (!despesasMap.has(categoria)) {
+            despesasMap.set(categoria, {
+              categoria,
+              valorAtual: 0,
+              valorAnterior: 0,
+              variacao: 0
+            });
+          }
+          const despesa = despesasMap.get(categoria)!;
+          despesa.valorAnterior += item.valor;
+        });
+
+        // Calcula variações
+        const despesasFormatadas = Array.from(despesasMap.values()).map(despesa => ({
+          ...despesa,
+          variacao: despesa.valorAnterior === 0
+            ? despesa.valorAtual > 0 ? 100 : 0
+            : ((despesa.valorAtual - despesa.valorAnterior) / despesa.valorAnterior) * 100
+        })).sort((a, b) => b.valorAtual - a.valorAtual);
+
+        setDespesas(despesasFormatadas);
+
+        // Busca as vendas do mês ordenadas por valor
+        const { data: vendasData } = await supabase
+          .from('registro_de_vendas')
+          .select(`
+            id,
+            valor,
+            cliente:cliente_id(razao_social),
+            vendedor:vendedor_id(nome)
+          `)
+          .gte('data_venda', `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-01`)
+          .lt('data_venda', selectedMonth === 11 
+            ? `${selectedYear + 1}-01-01`
+            : `${selectedYear}-${String(selectedMonth + 2).padStart(2, '0')}-01`)
+          .order('valor', { ascending: false });
+
+        setVendas(vendasData || []);
+      } catch (error) {
+        console.error('Erro ao buscar dados:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [selectedEmpresa, selectedMonth, selectedYear]);
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value);
+  };
+
+  const formatPercentage = (value: number) => {
+    return `${value > 0 ? '+' : ''}${value.toFixed(1)}%`;
+  };
 
   const renderNoEmpresaSelected = () => (
     <div className={`rounded-xl p-8 ${isDark ? 'bg-[#151515]' : 'bg-white'} text-center`}>
@@ -44,12 +168,24 @@ const Evolucao: React.FC = () => {
     </div>
   );
 
-  const renderLoadingChart = () => (
-    <div className={`h-full rounded-xl p-4 ${isDark ? 'bg-[#151515]' : 'bg-white'}`}>
-      <div className={`h-6 w-48 rounded mb-4 ${isDark ? 'bg-gray-800' : 'bg-gray-200'}`} />
-      <div className="h-[calc(100%-2.5rem)] flex items-center justify-center">
-        <Loader2 className={`h-8 w-8 animate-spin ${isDark ? 'text-gray-600' : 'text-gray-400'}`} />
-      </div>
+  const renderLoading = () => (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {[1, 2].map((i) => (
+        <div
+          key={i}
+          className={`rounded-xl p-6 ${isDark ? 'bg-[#151515]' : 'bg-white'}`}
+        >
+          <div className={`h-6 w-48 rounded mb-6 ${isDark ? 'bg-gray-800' : 'bg-gray-200'}`} />
+          <div className="space-y-4">
+            {Array(5).fill(0).map((_, j) => (
+              <div
+                key={j}
+                className={`h-12 rounded animate-pulse ${isDark ? 'bg-gray-800/50' : 'bg-gray-100'}`}
+              />
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 
@@ -79,50 +215,118 @@ const Evolucao: React.FC = () => {
         </div>
       </div>
 
-      <div className="px-6 flex-1 flex flex-col gap-6 min-h-0 overflow-auto pb-6">
+      <div className="px-6 flex-1 min-h-0 overflow-auto pb-6">
         {!selectedEmpresa ? (
           renderNoEmpresaSelected()
         ) : loading ? (
-          <div className="space-y-6">
-            {Array(4).fill(0).map((_, i) => (
-              <div key={i} className="h-[400px]">
-                {renderLoadingChart()}
-              </div>
-            ))}
-          </div>
+          renderLoading()
         ) : (
-          <div className="space-y-6">
-            {graficoVisualizacoes
-              .sort((a, b) => a.ordem - b.ordem)
-              .map(visualizacao => {
-                if (!visualizacao.dados_grafico) return null;
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Coluna de Despesas */}
+            <div className={`rounded-xl overflow-hidden ${isDark ? 'bg-[#151515]' : 'bg-white'}`}>
+              <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                <h2 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Categorias de Despesas
+                </h2>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className={isDark ? 'bg-gray-800/50' : 'bg-gray-50'}>
+                      <th className={`px-6 py-3 text-left text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'} uppercase tracking-wider w-16`}>
+                        #
+                      </th>
+                      <th className={`px-6 py-3 text-left text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'} uppercase tracking-wider`}>
+                        Categoria
+                      </th>
+                      <th className={`px-6 py-3 text-right text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'} uppercase tracking-wider`}>
+                        Mês Anterior
+                      </th>
+                      <th className={`px-6 py-3 text-right text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'} uppercase tracking-wider`}>
+                        Mês Atual
+                      </th>
+                      <th className={`px-6 py-3 text-right text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'} uppercase tracking-wider`}>
+                        Variação
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className={`divide-y ${isDark ? 'divide-gray-700' : 'divide-gray-200'}`}>
+                    {despesas.map((despesa, index) => (
+                      <tr key={index} className={isDark ? 'hover:bg-gray-800/30' : 'hover:bg-gray-50'}>
+                        <td className={`px-6 py-4 text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                          {index + 1}
+                        </td>
+                        <td className={`px-6 py-4 text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                          {despesa.categoria}
+                        </td>
+                        <td className={`px-6 py-4 text-sm text-right font-medium text-red-500`}>
+                          {formatCurrency(despesa.valorAnterior)}
+                        </td>
+                        <td className={`px-6 py-4 text-sm text-right font-medium text-red-500`}>
+                          {formatCurrency(despesa.valorAtual)}
+                        </td>
+                        <td className={`px-6 py-4 text-sm text-right font-medium flex items-center justify-end gap-1
+                          ${despesa.variacao > 0 ? 'text-red-500' : 'text-green-500'}`}>
+                          {despesa.variacao > 0 ? (
+                            <TrendingUp className="h-4 w-4" />
+                          ) : (
+                            <TrendingDown className="h-4 w-4" />
+                          )}
+                          {formatPercentage(despesa.variacao)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
 
-                const series = Object.keys(visualizacao.dados_grafico[0])
-                  .filter(key => key !== 'name')
-                  .map(key => ({
-                    dataKey: key,
-                    name: key
-                  }));
-
-                return (
-                  <div key={visualizacao.id}>
-                    <div className={`rounded-xl p-4 ${isDark ? 'bg-[#151515]' : 'bg-white'}`}>
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                          {visualizacao.nome_exibicao}
-                        </h3>
-                      </div>
-                      <div className="h-[350px]">
-                        <DashboardChart
-                          type={visualizacao.tipo_grafico || 'line'}
-                          data={visualizacao.dados_grafico}
-                          series={series}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+            {/* Coluna de Vendas */}
+            <div className={`rounded-xl overflow-hidden ${isDark ? 'bg-[#151515]' : 'bg-white'}`}>
+              <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                <h2 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Vendas do Mês
+                </h2>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className={isDark ? 'bg-gray-800/50' : 'bg-gray-50'}>
+                      <th className={`px-6 py-3 text-left text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'} uppercase tracking-wider w-16`}>
+                        #
+                      </th>
+                      <th className={`px-6 py-3 text-left text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'} uppercase tracking-wider`}>
+                        Cliente
+                      </th>
+                      <th className={`px-6 py-3 text-left text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'} uppercase tracking-wider`}>
+                        Vendedor
+                      </th>
+                      <th className={`px-6 py-3 text-right text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'} uppercase tracking-wider`}>
+                        Valor
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className={`divide-y ${isDark ? 'divide-gray-700' : 'divide-gray-200'}`}>
+                    {vendas.map((venda, index) => (
+                      <tr key={venda.id} className={isDark ? 'hover:bg-gray-800/30' : 'hover:bg-gray-50'}>
+                        <td className={`px-6 py-4 text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                          {index + 1}
+                        </td>
+                        <td className={`px-6 py-4 text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                          {venda.cliente?.razao_social || '-'}
+                        </td>
+                        <td className={`px-6 py-4 text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                          {venda.vendedor?.nome || '-'}
+                        </td>
+                        <td className={`px-6 py-4 text-sm text-right font-medium text-green-500`}>
+                          {formatCurrency(venda.valor)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         )}
       </div>
