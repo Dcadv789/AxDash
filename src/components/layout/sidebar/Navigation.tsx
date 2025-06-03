@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, LineChart, ShoppingCart, TrendingUp, FileText, BarChart, Table } from 'lucide-react';
+import { Home, LineChart, ShoppingCart, TrendingUp, FileText, BarChart, Table, Calculator } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -20,6 +20,7 @@ const Navigation: React.FC<NavigationProps> = ({ collapsed }) => {
     { id: 'analise-vendas', label: 'Análise de Vendas', icon: TrendingUp, path: '/analise-vendas' },
     { id: 'graficos', label: 'Gráficos', icon: BarChart, path: '/graficos' },
     { id: 'evolucao', label: 'Evolução Mensal', icon: Table, path: '/evolucao' },
+    { id: 'dre', label: 'DRE', icon: Calculator, path: '/dre' },
     { id: 'cadastros', label: 'Cadastros', icon: FileText, path: '/cadastros' },
   ];
 

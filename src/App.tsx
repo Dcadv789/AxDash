@@ -10,6 +10,7 @@ import Analise from './pages/Analise';
 import AnaliseVendas from './pages/AnaliseVendas';
 import Graficos from './pages/Graficos';
 import Evolucao from './pages/Evolucao';
+import Dre from './pages/Dre';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 
 function App() {
@@ -27,6 +28,7 @@ function App() {
                 <Route path="analise-vendas" element={<AnaliseVendas />} />
                 <Route path="graficos" element={<Graficos />} />
                 <Route path="evolucao" element={<Evolucao />} />
+                <Route path="dre" element={<Dre />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="cadastros" element={<Cadastros />} />
               </Routes>
@@ -39,6 +41,7 @@ function App() {
           <Route path="/analise-vendas" />
           <Route path="/graficos" />
           <Route path="/evolucao" />
+          <Route path="/dre" />
           <Route path="/profile" />
           <Route path="/cadastros" />
         </Route>
