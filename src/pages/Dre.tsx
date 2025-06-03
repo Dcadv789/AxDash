@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import EmpresaFilter from '../components/common/EmpresaFilter';
 import DateFilter from '../components/common/DateFilter';
@@ -66,8 +66,9 @@ const Dre: React.FC = () => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL',
-      maximumFractionDigits: 0
-    }).format(value);
+      maximumFractionDigits: 2,
+      minimumFractionDigits: 2
+    }).format(Math.abs(value)).replace('R$', '').trim();
   };
 
   const renderNoEmpresaSelected = () => (
@@ -85,12 +86,12 @@ const Dre: React.FC = () => {
   const renderConta = (conta: DreConta, level: number = 0) => {
     const hasChildren = conta.children && conta.children.length > 0;
     const isExpanded = expandedContas.has(conta.id);
-    const paddingLeft = `${level * 1.5}rem`;
+    const paddingLeft = `${level * 1.5 + 1.5}rem`;
 
     return (
       <React.Fragment key={conta.id}>
         <tr className={isDark ? 'hover:bg-gray-800/30' : 'hover:bg-gray-50'}>
-          <td className="px-4 py-2" style={{ paddingLeft }}>
+          <td className="px-6 py-2" style={{ paddingLeft }}>
             <div className="flex items-center gap-1.5 whitespace-nowrap">
               {hasChildren && (
                 <button
@@ -115,10 +116,10 @@ const Dre: React.FC = () => {
               </span>
             </div>
           </td>
-          {conta.valores_mensais.map((valor, index) => (
+          {conta.valores_mensais.slice().reverse().map((valor, index) => (
             <td
               key={index}
-              className={`px-4 py-2 text-right whitespace-nowrap text-sm font-medium
+              className={`px-3 py-2 text-right whitespace-nowrap text-sm font-medium
                 ${valor >= 0 ? 'text-green-500' : 'text-red-500'}`}
             >
               {formatCurrency(valor)}
@@ -131,17 +132,19 @@ const Dre: React.FC = () => {
   };
 
   const getMeses = () => {
-    const meses = [];
-    for (let i = 0; i < 13; i++) {
+    const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const result = [];
+    
+    for (let i = 12; i >= 0; i--) {
       let mesAtual = selectedMonth - i;
       let anoAtual = selectedYear;
       while (mesAtual < 0) {
         mesAtual += 12;
         anoAtual--;
       }
-      meses.push(`${String(mesAtual + 1).padStart(2, '0')}/${String(anoAtual).slice(-2)}`);
+      result.push(`${meses[mesAtual]}/${String(anoAtual).slice(-2)}`);
     }
-    return meses;
+    return result;
   };
 
   return (
@@ -183,11 +186,11 @@ const Dre: React.FC = () => {
               <table className="w-full">
                 <thead>
                   <tr className={isDark ? 'bg-gray-800/50' : 'bg-gray-50'}>
-                    <th className={`px-4 py-2 text-left text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'} uppercase tracking-wider sticky left-0 z-10 ${isDark ? 'bg-gray-800/50' : 'bg-gray-50'}`}>
+                    <th className={`px-6 py-2 text-left text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'} uppercase tracking-wider sticky left-0 z-10 ${isDark ? 'bg-gray-800/50' : 'bg-gray-50'}`}>
                       Conta
                     </th>
                     {getMeses().map((mes, index) => (
-                      <th key={index} className={`px-4 py-2 text-right text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'} uppercase tracking-wider min-w-[120px]`}>
+                      <th key={index} className={`px-3 py-2 text-right text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'} uppercase tracking-wider w-[90px]`}>
                         {mes}
                       </th>
                     ))}
