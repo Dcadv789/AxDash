@@ -72,12 +72,12 @@ const Dre: React.FC = () => {
   };
 
   const renderNoEmpresaSelected = () => (
-    <div className={`rounded-lg p-6 ${isDark ? 'bg-[#151515]' : 'bg-white'} text-center`}>
-      <Building className={`w-10 h-10 mx-auto mb-3 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
-      <h2 className={`text-lg font-semibold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+    <div className={`rounded-xl p-8 ${isDark ? 'bg-[#151515]' : 'bg-white'} text-center`}>
+      <Building className={`w-12 h-12 mx-auto mb-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+      <h2 className={`text-xl font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
         Selecione uma empresa
       </h2>
-      <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+      <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
         Para visualizar o DRE, selecione uma empresa no filtro acima
       </p>
     </div>
@@ -90,16 +90,22 @@ const Dre: React.FC = () => {
 
     return (
       <React.Fragment key={conta.id}>
-        <tr className={isDark ? 'hover:bg-gray-800/30' : 'hover:bg-gray-50'}>
-          <td className="px-6 py-2" style={{ paddingLeft }}>
-            <div className="flex items-center gap-1.5 whitespace-nowrap">
+        <tr className={`
+          ${isDark 
+            ? hasChildren ? 'bg-gray-800/30 hover:bg-gray-800/50' : 'hover:bg-gray-800/30'
+            : hasChildren ? 'bg-gray-50 hover:bg-gray-100' : 'hover:bg-gray-50'
+          }
+        `}>
+          <td className={`sticky left-0 z-10 px-6 py-2 whitespace-nowrap border-r ${isDark ? 'border-gray-700' : 'border-gray-200'} bg-inherit`} style={{ paddingLeft }}>
+            <div className="flex items-center gap-1.5">
               {hasChildren && (
                 <button
                   onClick={() => toggleConta(conta.id)}
-                  className={`p-0.5 rounded transition-colors
-                    ${isDark
+                  className={`p-0.5 rounded transition-colors ${
+                    isDark
                       ? 'hover:bg-gray-700 text-gray-400'
-                      : 'hover:bg-gray-200 text-gray-600'}`}
+                      : 'hover:bg-gray-200 text-gray-600'
+                  }`}
                 >
                   {isExpanded ? (
                     <ChevronDown className="h-3.5 w-3.5" />
@@ -111,7 +117,7 @@ const Dre: React.FC = () => {
               <span className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
                 {conta.simbolo}
               </span>
-              <span className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              <span className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'} ${hasChildren ? 'font-medium' : ''}`}>
                 {conta.nome}
               </span>
             </div>
@@ -173,24 +179,30 @@ const Dre: React.FC = () => {
         </div>
       </div>
 
-      <div className="px-4 flex-1 min-h-0 overflow-auto pb-4">
+      <div className="px-4 flex-1 min-h-0 pb-4">
         {!selectedEmpresa ? (
           renderNoEmpresaSelected()
         ) : loading ? (
-          <div className={`rounded-lg p-6 ${isDark ? 'bg-[#151515]' : 'bg-white'} flex items-center justify-center`}>
+          <div className={`rounded-xl p-6 ${isDark ? 'bg-[#151515]' : 'bg-white'} flex items-center justify-center`}>
             <Loader2 className={`h-6 w-6 animate-spin ${isDark ? 'text-gray-600' : 'text-gray-400'}`} />
           </div>
         ) : (
-          <div className={`rounded-lg overflow-hidden ${isDark ? 'bg-[#151515]' : 'bg-white'}`}>
-            <div className="overflow-x-auto">
+          <div className={`rounded-xl ${isDark ? 'bg-[#151515]' : 'bg-white'} h-full flex flex-col`}>
+            <div className="overflow-auto custom-scrollbar flex-1">
               <table className="w-full">
                 <thead>
                   <tr className={isDark ? 'bg-gray-800/50' : 'bg-gray-50'}>
-                    <th className={`px-6 py-2 text-left text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'} uppercase tracking-wider sticky left-0 z-10 ${isDark ? 'bg-gray-800/50' : 'bg-gray-50'}`}>
+                    <th className={`sticky left-0 z-20 px-6 py-2 text-left text-xs font-medium border-r
+                      ${isDark 
+                        ? 'bg-gray-800/50 text-gray-400 border-gray-700' 
+                        : 'bg-gray-50 text-gray-500 border-gray-200'
+                      } uppercase tracking-wider min-w-[200px] max-w-[200px]`}>
                       Conta
                     </th>
                     {getMeses().map((mes, index) => (
-                      <th key={index} className={`px-3 py-2 text-right text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'} uppercase tracking-wider w-[90px]`}>
+                      <th key={index} className={`px-3 py-2 text-right text-xs font-medium 
+                        ${isDark ? 'text-gray-400' : 'text-gray-500'} 
+                        uppercase tracking-wider min-w-[90px] w-[90px]`}>
                         {mes}
                       </th>
                     ))}
