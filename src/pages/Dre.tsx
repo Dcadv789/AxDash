@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { ChevronLeft, ChevronRight, ChevronDown, Building, Loader2 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import EmpresaFilter from '../components/common/EmpresaFilter';
 import DateFilter from '../components/common/DateFilter';
-import { Building, ChevronRight, ChevronDown, Loader2 } from 'lucide-react';
 import { getDreData } from '../services/dreService';
 
 interface DreConta {
@@ -125,10 +125,12 @@ const Dre: React.FC = () => {
           {conta.valores_mensais.slice().reverse().map((valor, index) => (
             <td
               key={index}
-              className={`px-3 py-2 text-right whitespace-nowrap text-sm font-medium
+              className={`px-3 py-2 text-center whitespace-nowrap text-sm font-medium
                 ${valor >= 0 ? 'text-green-500' : 'text-red-500'}`}
             >
-              {formatCurrency(valor)}
+              <div className="inline-block min-w-[60px]">
+                {formatCurrency(valor)}
+              </div>
             </td>
           ))}
         </tr>
@@ -155,7 +157,7 @@ const Dre: React.FC = () => {
 
   return (
     <div className="h-full flex flex-col">
-      <div className="px-4 flex items-center justify-between mb-3">
+      <div className="px-6 flex items-center justify-between mb-3">
         <div>
           <h1 className={`text-xl font-bold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
             DRE
@@ -179,7 +181,7 @@ const Dre: React.FC = () => {
         </div>
       </div>
 
-      <div className="px-4 flex-1 min-h-0 pb-4">
+      <div className="px-6 flex-1 min-h-0">
         {!selectedEmpresa ? (
           renderNoEmpresaSelected()
         ) : loading ? (
@@ -196,13 +198,13 @@ const Dre: React.FC = () => {
                       ${isDark 
                         ? 'bg-gray-800/50 text-gray-400 border-gray-700' 
                         : 'bg-gray-50 text-gray-500 border-gray-200'
-                      } uppercase tracking-wider min-w-[200px] max-w-[200px]`}>
+                      } uppercase tracking-wider min-w-[300px] max-w-[300px]`}>
                       Conta
                     </th>
                     {getMeses().map((mes, index) => (
-                      <th key={index} className={`px-3 py-2 text-right text-xs font-medium 
+                      <th key={index} className={`px-3 py-2 text-center text-xs font-medium 
                         ${isDark ? 'text-gray-400' : 'text-gray-500'} 
-                        uppercase tracking-wider min-w-[90px] w-[90px]`}>
+                        uppercase tracking-wider min-w-[100px]`}>
                         {mes}
                       </th>
                     ))}
