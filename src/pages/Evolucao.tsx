@@ -60,7 +60,7 @@ const Evolucao: React.FC = () => {
           .eq('tipo', 'Despesa')
           .eq('mes', selectedMonth + 1)
           .eq('ano', selectedYear)
-          .not('categoria', 'is', null); // Filtra apenas registros com categoria
+          .not('categoria', 'is', null);
 
         // Busca as despesas do mês anterior
         const { data: despesasAnteriores } = await supabase
@@ -72,14 +72,14 @@ const Evolucao: React.FC = () => {
           .eq('tipo', 'Despesa')
           .eq('mes', mesAnterior)
           .eq('ano', anoAnterior)
-          .not('categoria', 'is', null); // Filtra apenas registros com categoria
+          .not('categoria', 'is', null);
 
         // Processa as despesas
         const despesasMap = new Map<string, Despesa>();
 
         // Processa despesas atuais
         despesasAtuais?.forEach(item => {
-          if (!item.categoria?.nome) return; // Ignora itens sem categoria
+          if (!item.categoria?.nome) return;
           const categoria = item.categoria.nome;
           if (!despesasMap.has(categoria)) {
             despesasMap.set(categoria, {
@@ -95,7 +95,7 @@ const Evolucao: React.FC = () => {
 
         // Processa despesas anteriores
         despesasAnteriores?.forEach(item => {
-          if (!item.categoria?.nome) return; // Ignora itens sem categoria
+          if (!item.categoria?.nome) return;
           const categoria = item.categoria.nome;
           if (!despesasMap.has(categoria)) {
             despesasMap.set(categoria, {
@@ -169,11 +169,11 @@ const Evolucao: React.FC = () => {
   );
 
   const renderLoading = () => (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
       {[1, 2].map((i) => (
         <div
           key={i}
-          className={`rounded-xl p-6 ${isDark ? 'bg-[#151515]' : 'bg-white'}`}
+          className={`rounded-xl p-6 ${isDark ? 'bg-[#151515]' : 'bg-white'} h-full`}
         >
           <div className={`h-6 w-48 rounded mb-6 ${isDark ? 'bg-gray-800' : 'bg-gray-200'}`} />
           <div className="space-y-4">
@@ -190,7 +190,7 @@ const Evolucao: React.FC = () => {
   );
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col overflow-hidden">
       <div className="px-6 flex items-center justify-between mb-4">
         <div>
           <h1 className={`text-2xl font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
@@ -215,116 +215,120 @@ const Evolucao: React.FC = () => {
         </div>
       </div>
 
-      <div className="px-6 flex-1 min-h-0 overflow-auto pb-6">
+      <div className="flex-1 px-6 min-h-0">
         {!selectedEmpresa ? (
           renderNoEmpresaSelected()
         ) : loading ? (
           renderLoading()
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
             {/* Coluna de Despesas */}
-            <div className={`rounded-xl overflow-hidden ${isDark ? 'bg-[#151515]' : 'bg-white'}`}>
+            <div className={`rounded-xl flex flex-col ${isDark ? 'bg-[#151515]' : 'bg-white'}`}>
               <div className="p-6 border-b border-gray-200 dark:border-gray-700">
                 <h2 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   Categorias de Despesas
                 </h2>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className={isDark ? 'bg-gray-800/50' : 'bg-gray-50'}>
-                      <th className={`px-6 py-3 text-left text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'} uppercase tracking-wider w-16`}>
-                        #
-                      </th>
-                      <th className={`px-6 py-3 text-left text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'} uppercase tracking-wider`}>
-                        Categoria
-                      </th>
-                      <th className={`px-6 py-3 text-right text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'} uppercase tracking-wider`}>
-                        Mês Anterior
-                      </th>
-                      <th className={`px-6 py-3 text-right text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'} uppercase tracking-wider`}>
-                        Mês Atual
-                      </th>
-                      <th className={`px-6 py-3 text-right text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'} uppercase tracking-wider`}>
-                        Variação
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className={`divide-y ${isDark ? 'divide-gray-700' : 'divide-gray-200'}`}>
-                    {despesas.map((despesa, index) => (
-                      <tr key={index} className={isDark ? 'hover:bg-gray-800/30' : 'hover:bg-gray-50'}>
-                        <td className={`px-6 py-4 text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                          {index + 1}
-                        </td>
-                        <td className={`px-6 py-4 text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                          {despesa.categoria}
-                        </td>
-                        <td className={`px-6 py-4 text-sm text-right font-medium text-red-500`}>
-                          {formatCurrency(despesa.valorAnterior)}
-                        </td>
-                        <td className={`px-6 py-4 text-sm text-right font-medium text-red-500`}>
-                          {formatCurrency(despesa.valorAtual)}
-                        </td>
-                        <td className={`px-6 py-4 text-sm text-right font-medium flex items-center justify-end gap-1
-                          ${despesa.variacao > 0 ? 'text-red-500' : 'text-green-500'}`}>
-                          {despesa.variacao > 0 ? (
-                            <TrendingUp className="h-4 w-4" />
-                          ) : (
-                            <TrendingDown className="h-4 w-4" />
-                          )}
-                          {formatPercentage(despesa.variacao)}
-                        </td>
+              <div className="flex-1 overflow-hidden">
+                <div className="h-full overflow-auto custom-scrollbar">
+                  <table className="w-full">
+                    <thead className="sticky top-0 z-10">
+                      <tr className={isDark ? 'bg-gray-800/50' : 'bg-gray-50'}>
+                        <th className={`px-6 py-3 text-left text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'} uppercase tracking-wider w-16`}>
+                          #
+                        </th>
+                        <th className={`px-6 py-3 text-left text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'} uppercase tracking-wider`}>
+                          Categoria
+                        </th>
+                        <th className={`px-6 py-3 text-right text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'} uppercase tracking-wider`}>
+                          Mês Anterior
+                        </th>
+                        <th className={`px-6 py-3 text-right text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'} uppercase tracking-wider`}>
+                          Mês Atual
+                        </th>
+                        <th className={`px-6 py-3 text-right text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'} uppercase tracking-wider`}>
+                          Variação
+                        </th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className={`divide-y ${isDark ? 'divide-gray-700' : 'divide-gray-200'}`}>
+                      {despesas.map((despesa, index) => (
+                        <tr key={index} className={isDark ? 'hover:bg-gray-800/30' : 'hover:bg-gray-50'}>
+                          <td className={`px-6 py-4 text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                            {index + 1}
+                          </td>
+                          <td className={`px-6 py-4 text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                            {despesa.categoria}
+                          </td>
+                          <td className={`px-6 py-4 text-sm text-right font-medium text-red-500`}>
+                            {formatCurrency(despesa.valorAnterior)}
+                          </td>
+                          <td className={`px-6 py-4 text-sm text-right font-medium text-red-500`}>
+                            {formatCurrency(despesa.valorAtual)}
+                          </td>
+                          <td className={`px-6 py-4 text-sm text-right font-medium flex items-center justify-end gap-1
+                            ${despesa.variacao > 0 ? 'text-red-500' : 'text-green-500'}`}>
+                            {despesa.variacao > 0 ? (
+                              <TrendingUp className="h-4 w-4" />
+                            ) : (
+                              <TrendingDown className="h-4 w-4" />
+                            )}
+                            {formatPercentage(despesa.variacao)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
 
             {/* Coluna de Vendas */}
-            <div className={`rounded-xl overflow-hidden ${isDark ? 'bg-[#151515]' : 'bg-white'}`}>
+            <div className={`rounded-xl flex flex-col ${isDark ? 'bg-[#151515]' : 'bg-white'}`}>
               <div className="p-6 border-b border-gray-200 dark:border-gray-700">
                 <h2 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   Vendas do Mês
                 </h2>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className={isDark ? 'bg-gray-800/50' : 'bg-gray-50'}>
-                      <th className={`px-6 py-3 text-left text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'} uppercase tracking-wider w-16`}>
-                        #
-                      </th>
-                      <th className={`px-6 py-3 text-left text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'} uppercase tracking-wider`}>
-                        Cliente
-                      </th>
-                      <th className={`px-6 py-3 text-left text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'} uppercase tracking-wider`}>
-                        Vendedor
-                      </th>
-                      <th className={`px-6 py-3 text-right text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'} uppercase tracking-wider`}>
-                        Valor
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className={`divide-y ${isDark ? 'divide-gray-700' : 'divide-gray-200'}`}>
-                    {vendas.map((venda, index) => (
-                      <tr key={venda.id} className={isDark ? 'hover:bg-gray-800/30' : 'hover:bg-gray-50'}>
-                        <td className={`px-6 py-4 text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                          {index + 1}
-                        </td>
-                        <td className={`px-6 py-4 text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                          {venda.cliente?.razao_social || '-'}
-                        </td>
-                        <td className={`px-6 py-4 text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                          {venda.vendedor?.nome || '-'}
-                        </td>
-                        <td className={`px-6 py-4 text-sm text-right font-medium text-green-500`}>
-                          {formatCurrency(venda.valor)}
-                        </td>
+              <div className="flex-1 overflow-hidden">
+                <div className="h-full overflow-auto custom-scrollbar">
+                  <table className="w-full">
+                    <thead className="sticky top-0 z-10">
+                      <tr className={isDark ? 'bg-gray-800/50' : 'bg-gray-50'}>
+                        <th className={`px-6 py-3 text-left text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'} uppercase tracking-wider w-16`}>
+                          #
+                        </th>
+                        <th className={`px-6 py-3 text-left text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'} uppercase tracking-wider`}>
+                          Cliente
+                        </th>
+                        <th className={`px-6 py-3 text-left text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'} uppercase tracking-wider`}>
+                          Vendedor
+                        </th>
+                        <th className={`px-6 py-3 text-right text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'} uppercase tracking-wider`}>
+                          Valor
+                        </th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className={`divide-y ${isDark ? 'divide-gray-700' : 'divide-gray-200'}`}>
+                      {vendas.map((venda, index) => (
+                        <tr key={venda.id} className={isDark ? 'hover:bg-gray-800/30' : 'hover:bg-gray-50'}>
+                          <td className={`px-6 py-4 text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                            {index + 1}
+                          </td>
+                          <td className={`px-6 py-4 text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                            {venda.cliente?.razao_social || '-'}
+                          </td>
+                          <td className={`px-6 py-4 text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                            {venda.vendedor?.nome || '-'}
+                          </td>
+                          <td className={`px-6 py-4 text-sm text-right font-medium text-green-500`}>
+                            {formatCurrency(venda.valor)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
