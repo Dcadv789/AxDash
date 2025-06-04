@@ -82,11 +82,33 @@ export const useVisualizacoes = (empresaId: string, mes: number, ano: number, pa
 
             // Processa os diferentes tipos de visualização
             switch (config.tipo_visualizacao) {
-              case 'card':
+              case 'card': {
                 const { valorAtual, valorAnterior } = await processarCard(config.componentes, mes, ano, config.ordem);
-                visualizacao.valor_atual = valorAtual;
-                visualizacao.valor_anterior = valorAnterior;
+                
+                // Tratamento especial para widget 10
+                if (pagina === 'vendas' && config.ordem === 10) {
+                  visualizacao.valor_atual = valorAtual / 10;
+                  visualizacao.valor_anterior = valorAnterior / 10;
+                } 
+                // Tratamento especial para ordens 6 e 7 na página de vendas
+                else if (pagina === 'vendas' && (config.ordem === 6 || config.ordem === 7)) {
+                  const widgetOrdem1 = configVisualizacoes.find(v => v.ordem === 1);
+                  if (widgetOrdem1) {
+                    const { valorAtual: valorBase } = await processarCard(widgetOrdem1.componentes, mes, ano, 1);
+                    const { valorAtual: valorBaseMesAnterior } = await processarCard(widgetOrdem1.componentes, mes === 0 ? 11 : mes - 1, mes === 0 ? ano - 1 : ano, 1);
+                    
+                    const porcentagemAtual = (valorAtual / valorBase) * 100;
+                    const porcentagemAnterior = (valorAnterior / valorBaseMesAnterior) * 100;
+                    
+                    visualizacao.valor_atual = porcentagemAtual;
+                    visualizacao.valor_anterior = porcentagemAnterior;
+                  }
+                } else {
+                  visualizacao.valor_atual = valorAtual;
+                  visualizacao.valor_anterior = valorAnterior;
+                }
                 break;
+              }
 
               case 'lista':
                 visualizacao.itens = await processarLista(config.componentes, mes, ano);

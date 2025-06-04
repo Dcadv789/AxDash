@@ -8,6 +8,7 @@ interface DashboardCardProps {
   currentValue: number;
   previousValue?: number;
   variation?: number;
+  isPercentage?: boolean;
 }
 
 const DashboardCard: React.FC<DashboardCardProps> = ({
@@ -15,20 +16,23 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
   icon: Icon,
   currentValue,
   previousValue,
-  variation
+  variation,
+  isPercentage
 }) => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
-  // Calcula a variação se não foi fornecida e temos um valor anterior
   const calculatedVariation = variation ?? (previousValue !== undefined && previousValue !== 0
     ? ((currentValue - previousValue) / Math.abs(previousValue)) * 100
     : (currentValue > 0 ? 100 : 0));
 
-  const isPositive = calculatedVariation > 0;
+  const isPositive = currentValue >= 0;
   const ArrowIcon = isPositive ? ArrowUpRight : ArrowDownRight;
 
-  const formatCurrency = (value: number) => {
+  const formatValue = (value: number) => {
+    if (isPercentage) {
+      return `${value.toFixed(2)}%`;
+    }
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL'
@@ -52,12 +56,12 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
 
       <div className="flex items-end justify-between">
         <div>
-          <p className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-            {formatCurrency(currentValue)}
+          <p className={`text-2xl font-bold ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
+            {formatValue(currentValue)}
           </p>
           {previousValue !== undefined && (
             <p className={`text-sm mt-0.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-              Anterior: {formatCurrency(previousValue)}
+              Anterior: {formatValue(isPercentage ? currentValue - previousValue : previousValue)}
             </p>
           )}
         </div>
@@ -68,7 +72,7 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
                 ? 'text-green-500 bg-green-500/10' 
                 : 'text-red-500 bg-red-500/10'}`}>
               <ArrowIcon className="h-4 w-4" />
-              <span>{Math.abs(calculatedVariation).toFixed(1)}%</span>
+              <span>{isPercentage ? `${Math.abs(previousValue).toFixed(2)} p.p.` : `${Math.abs(calculatedVariation).toFixed(2)}%`}</span>
             </div>
             <span className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
               vs. mês anterior
@@ -78,6 +82,6 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
       </div>
     </div>
   );
-}
+};
 
 export default DashboardCard;

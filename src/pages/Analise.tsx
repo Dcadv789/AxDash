@@ -29,7 +29,7 @@ const Analise: React.FC = () => {
     selectedEmpresa,
     selectedMonth,
     selectedYear,
-    'analise' // Filtrando pela página de análise
+    'analise'
   );
 
   const calculateVariation = (atual: number, anterior: number) => {
@@ -48,6 +48,21 @@ const Analise: React.FC = () => {
   const cardsVisualizacoes = visualizacoes.filter(v => v.tipo_visualizacao === 'card');
   const graficoVisualizacoes = visualizacoes.filter(v => v.tipo_visualizacao === 'grafico');
   const listaVisualizacoes = visualizacoes.filter(v => v.tipo_visualizacao === 'lista');
+
+  // Função para processar os dados do gráfico e tornar valores positivos
+  const processChartData = (dados: any[]) => {
+    if (!dados || dados.length === 0) return dados;
+
+    return dados.map(item => {
+      const newItem = { ...item };
+      Object.keys(newItem).forEach(key => {
+        if (key !== 'name' && typeof newItem[key] === 'number') {
+          newItem[key] = Math.abs(newItem[key]);
+        }
+      });
+      return newItem;
+    });
+  };
 
   const renderNoEmpresaSelected = () => (
     <div className={`rounded-xl p-8 ${isDark ? 'bg-[#151515]' : 'bg-white'} text-center`}>
@@ -177,6 +192,9 @@ const Analise: React.FC = () => {
                           name: key
                         }));
 
+                      // Processa os dados do gráfico para tornar valores positivos
+                      const processedData = processChartData(visualizacao.dados_grafico);
+
                       return (
                         <div
                           key={visualizacao.id}
@@ -188,7 +206,7 @@ const Analise: React.FC = () => {
                           <div className="h-[calc(100%-2.5rem)]">
                             <DashboardChart
                               type={visualizacao.tipo_grafico || 'line'}
-                              data={visualizacao.dados_grafico}
+                              data={processedData}
                               series={series}
                             />
                           </div>

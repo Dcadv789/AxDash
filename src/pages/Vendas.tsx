@@ -13,7 +13,12 @@ import {
   Wallet, 
   PiggyBank,
   Building,
-  Loader2
+  Loader2,
+  Target,
+  BarChart,
+  LineChart,
+  PieChart,
+  ArrowUpCircle
 } from 'lucide-react';
 
 const Vendas: React.FC = () => {
@@ -29,7 +34,7 @@ const Vendas: React.FC = () => {
     selectedEmpresa,
     selectedMonth,
     selectedYear,
-    'vendas' // Adicionamos o parâmetro para filtrar por página
+    'vendas'
   );
 
   const calculateVariation = (atual: number, anterior: number) => {
@@ -37,12 +42,20 @@ const Vendas: React.FC = () => {
     return ((atual - anterior) / Math.abs(anterior)) * 100;
   };
 
-  const getFinancialIcon = (title: string) => {
-    const normalizedTitle = title.toLowerCase();
-    if (normalizedTitle.includes('receita')) return DollarSign;
-    if (normalizedTitle.includes('despesa')) return CreditCard;
-    if (normalizedTitle.includes('lucro')) return PiggyBank;
-    return Wallet;
+  const getFinancialIcon = (ordem: number) => {
+    switch (ordem) {
+      case 1: return DollarSign;
+      case 2: return Target;
+      case 3: return BarChart;
+      case 4: return PieChart;
+      case 5: return LineChart;
+      case 6: return ArrowUpCircle;
+      case 7: return TrendingUp;
+      case 8: return Wallet;
+      case 9: return CreditCard;
+      case 10: return PiggyBank;
+      default: return DollarSign;
+    }
   };
 
   const cardsVisualizacoes = visualizacoes.filter(v => v.tipo_visualizacao === 'card');
@@ -147,13 +160,14 @@ const Vendas: React.FC = () => {
                     <DashboardCard
                       key={visualizacao.id}
                       title={visualizacao.nome_exibicao}
-                      icon={getFinancialIcon(visualizacao.nome_exibicao)}
+                      icon={getFinancialIcon(visualizacao.ordem)}
                       currentValue={visualizacao.valor_atual || 0}
                       previousValue={visualizacao.valor_anterior}
                       variation={calculateVariation(
                         visualizacao.valor_atual || 0,
                         visualizacao.valor_anterior || 0
                       )}
+                      isPercentage={visualizacao.ordem === 6 || visualizacao.ordem === 7 || visualizacao.ordem === 10}
                     />
                   ))
               )}
