@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../context/ThemeContext';
+import { useFilter } from '../context/FilterContext';
+import GlobalFilter from '../components/common/GlobalFilter';
 import { supabase } from '../lib/supabase';
-import EmpresaFilter from '../components/common/EmpresaFilter';
-import DateFilter from '../components/common/DateFilter';
 import CategoriasDespesas from '../components/evolucao/CategoriasDespesas';
 import VendasMes from '../components/evolucao/VendasMes';
 
@@ -28,14 +28,10 @@ interface Venda {
 const Evolucao: React.FC = () => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-  const [selectedEmpresa, setSelectedEmpresa] = useState('');
+  const { selectedEmpresa, selectedMonth, selectedYear } = useFilter();
   const [loading, setLoading] = useState(false);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [vendas, setVendas] = useState<Venda[]>([]);
-  
-  const hoje = new Date();
-  const [selectedMonth, setSelectedMonth] = useState(hoje.getMonth());
-  const [selectedYear, setSelectedYear] = useState(hoje.getFullYear());
 
   useEffect(() => {
     if (!selectedEmpresa) {
@@ -154,7 +150,7 @@ const Evolucao: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex-none px-6 mb-4">
+      <div className="flex-none px-10 mb-4">
         <div className="flex items-center justify-between">
           <div>
             <h1 className={`text-2xl font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
@@ -165,22 +161,11 @@ const Evolucao: React.FC = () => {
             </p>
           </div>
 
-          <div className={`flex items-center gap-4 py-2 px-4 rounded-xl ${isDark ? 'bg-[#151515]' : 'bg-white'}`}>
-            <EmpresaFilter
-              value={selectedEmpresa}
-              onChange={setSelectedEmpresa}
-            />
-            <DateFilter
-              selectedMonth={selectedMonth}
-              selectedYear={selectedYear}
-              onMonthChange={setSelectedMonth}
-              onYearChange={setSelectedYear}
-            />
-          </div>
+          <GlobalFilter />
         </div>
       </div>
 
-      <div className="flex-1 px-6 min-h-0">
+      <div className="px-6 flex-1 min-h-0">
         <div className="grid grid-cols-2 gap-4 h-full">
           <CategoriasDespesas
             categorias={categorias}

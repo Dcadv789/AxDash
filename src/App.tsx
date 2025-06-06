@@ -11,6 +11,7 @@ import AnaliseVendas from './pages/AnaliseVendas';
 import Graficos from './pages/Graficos';
 import Evolucao from './pages/Evolucao';
 import Dre from './pages/Dre';
+import Configuracoes from './pages/Configuracoes';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 
 function App() {
@@ -31,6 +32,7 @@ function App() {
                 <Route path="dre" element={<Dre />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="cadastros" element={<Cadastros />} />
+                <Route path="configuracoes" element={<Configuracoes />} />
               </Routes>
             </Layout>
           </ProtectedRoute>
@@ -44,6 +46,7 @@ function App() {
           <Route path="/dre" />
           <Route path="/profile" />
           <Route path="/cadastros" />
+          <Route path="/configuracoes" />
         </Route>
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>

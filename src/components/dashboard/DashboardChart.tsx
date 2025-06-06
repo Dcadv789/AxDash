@@ -52,12 +52,19 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
     return dataString;
   };
 
-  const chartProps = {
-    data: data.map(item => ({
-      ...item,
-      name: formatarNomeMes(item.name)
-    }))
-  };
+  // Processa os dados para converter números negativos em positivos
+  const processedData = data.map(item => {
+    const newItem = { ...item };
+    Object.keys(newItem).forEach(key => {
+      if (key !== 'name' && typeof newItem[key] === 'number') {
+        newItem[key] = Math.abs(newItem[key]);
+      }
+    });
+    return {
+      ...newItem,
+      name: formatarNomeMes(newItem.name)
+    };
+  });
 
   const axisStyle = {
     fontSize: 12,
@@ -97,7 +104,7 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
 
   const renderChart = () => {
     const commonProps = {
-      ...chartProps,
+      data: processedData,
       margin: { top: 10, right: 20, left: 10, bottom: 5 }
     };
 

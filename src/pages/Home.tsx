@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useTheme } from '../context/ThemeContext';
-import EmpresaFilter from '../components/common/EmpresaFilter';
-import DateFilter from '../components/common/DateFilter';
+import { useFilter } from '../context/FilterContext';
+import GlobalFilter from '../components/common/GlobalFilter';
 import DashboardCard from '../components/dashboard/DashboardCard';
 import DashboardList from '../components/dashboard/DashboardList';
 import DashboardChart from '../components/dashboard/DashboardChart';
@@ -19,11 +19,7 @@ import {
 const Home: React.FC = () => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-  const [selectedEmpresa, setSelectedEmpresa] = useState('');
-  
-  const hoje = new Date();
-  const [selectedMonth, setSelectedMonth] = useState(hoje.getMonth());
-  const [selectedYear, setSelectedYear] = useState(hoje.getFullYear());
+  const { selectedEmpresa, selectedMonth, selectedYear } = useFilter();
 
   const { visualizacoes, loading } = useVisualizacoes(
     selectedEmpresa,
@@ -102,7 +98,7 @@ const Home: React.FC = () => {
 
   return (
     <div className="h-full flex flex-col">
-      <div className="px-6 flex items-center justify-between mb-4">
+      <div className="px-10 flex items-center justify-between mb-4">
         <div>
           <h1 className={`text-2xl font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
             Dashboard
@@ -112,18 +108,7 @@ const Home: React.FC = () => {
           </p>
         </div>
 
-        <div className={`flex items-center gap-4 py-2 px-4 rounded-xl ${isDark ? 'bg-[#151515]' : 'bg-white'}`}>
-          <EmpresaFilter
-            value={selectedEmpresa}
-            onChange={setSelectedEmpresa}
-          />
-          <DateFilter
-            selectedMonth={selectedMonth}
-            selectedYear={selectedYear}
-            onMonthChange={setSelectedMonth}
-            onYearChange={setSelectedYear}
-          />
-        </div>
+        <GlobalFilter />
       </div>
 
       <div className="px-6 flex-1 flex flex-col gap-4 min-h-0 overflow-auto pb-6">

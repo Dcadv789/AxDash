@@ -1,6 +1,7 @@
 import React from 'react';
-import { Home, LineChart, ShoppingCart, TrendingUp, FileText, BarChart, Table, Calculator } from 'lucide-react';
+import { Home, LineChart, ShoppingCart, TrendingUp, FileText, BarChart, Table, Calculator, Settings } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
+import { useUser } from '../../../context/UserContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 interface NavigationProps {
@@ -9,6 +10,7 @@ interface NavigationProps {
 
 const Navigation: React.FC<NavigationProps> = ({ collapsed }) => {
   const { theme } = useTheme();
+  const { user } = useUser();
   const isDark = theme === 'dark';
   const navigate = useNavigate();
   const location = useLocation();
@@ -22,12 +24,23 @@ const Navigation: React.FC<NavigationProps> = ({ collapsed }) => {
     { id: 'evolucao', label: 'Evolução Mensal', icon: Table, path: '/evolucao' },
     { id: 'dre', label: 'DRE', icon: Calculator, path: '/dre' },
     { id: 'cadastros', label: 'Cadastros', icon: FileText, path: '/cadastros' },
+    { id: 'configuracoes', label: 'Configurações', icon: Settings, path: '/configuracoes' }
   ];
+
+  // Filtra os itens do menu baseado nas rotas permitidas do usuário
+  const filteredMenuItems = menuItems.filter(item => {
+    // Se o usuário for master, mostra todas as rotas
+    if (user?.role === 'master') return true;
+    // Se não tiver rotas_permitidas definido, não mostra nada
+    if (!user?.rotas_permitidas) return false;
+    // Mostra apenas as rotas permitidas
+    return user.rotas_permitidas.includes(item.id);
+  });
 
   return (
     <nav className="flex-grow p-4">
       <div className="space-y-2">
-        {menuItems.map(({ id, label, icon: Icon, path }) => (
+        {filteredMenuItems.map(({ id, label, icon: Icon, path }) => (
           <button 
             key={id}
             onClick={() => navigate(path)}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import { useFilter } from '../context/FilterContext';
 import { getDreData } from '../services/dreService';
 import DreHeader from '../components/dre/DreHeader';
 import DreTable from '../components/dre/DreTable';
@@ -21,16 +22,12 @@ interface DreConta {
 const Dre: React.FC = () => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-  const [selectedEmpresa, setSelectedEmpresa] = useState('');
+  const { selectedEmpresa, selectedMonth, selectedYear } = useFilter();
   const [loading, setLoading] = useState(false);
   const [contas, setContas] = useState<DreConta[]>([]);
   const [expandedContas, setExpandedContas] = useState<Set<string>>(new Set());
   const [showVariation, setShowVariation] = useState(false);
   const [showFullPeriod, setShowFullPeriod] = useState(true);
-  
-  const hoje = new Date();
-  const [selectedMonth, setSelectedMonth] = useState(hoje.getMonth());
-  const [selectedYear, setSelectedYear] = useState(hoje.getFullYear());
 
   useEffect(() => {
     const fetchData = async () => {
@@ -84,20 +81,25 @@ const Dre: React.FC = () => {
 
   return (
     <div className="h-full flex flex-col">
-      <DreHeader
-        selectedEmpresa={selectedEmpresa}
-        onEmpresaChange={setSelectedEmpresa}
-        selectedMonth={selectedMonth}
-        selectedYear={selectedYear}
-        onMonthChange={setSelectedMonth}
-        onYearChange={setSelectedYear}
-        showVariation={showVariation}
-        onToggleVariation={setShowVariation}
-        showFullPeriod={showFullPeriod}
-        onTogglePeriod={setShowFullPeriod}
-      />
+      <div className="px-10 flex items-center justify-between mb-4">
+        <div>
+          <h1 className={`text-2xl font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            DRE
+          </h1>
+          <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+            Demonstração do Resultado do Exercício
+          </p>
+        </div>
 
-      <div className="px-6 flex-1 min-h-0 pb-6 mt-6">
+        <DreHeader
+          showVariation={showVariation}
+          onToggleVariation={setShowVariation}
+          showFullPeriod={showFullPeriod}
+          onTogglePeriod={setShowFullPeriod}
+        />
+      </div>
+
+      <div className="px-6 flex-1 min-h-0 pb-6">
         {!selectedEmpresa ? (
           <NoEmpresaSelected />
         ) : loading ? (

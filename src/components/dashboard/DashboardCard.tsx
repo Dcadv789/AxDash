@@ -9,6 +9,7 @@ interface DashboardCardProps {
   previousValue?: number;
   variation?: number;
   isPercentage?: boolean;
+  isNumber?: boolean;
 }
 
 const DashboardCard: React.FC<DashboardCardProps> = ({
@@ -17,7 +18,8 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
   currentValue,
   previousValue,
   variation,
-  isPercentage
+  isPercentage,
+  isNumber
 }) => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -30,6 +32,9 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
   const ArrowIcon = isPositive ? ArrowUpRight : ArrowDownRight;
 
   const formatValue = (value: number) => {
+    if (isNumber) {
+      return value.toLocaleString('pt-BR');
+    }
     if (isPercentage) {
       return `${value.toFixed(2)}%`;
     }

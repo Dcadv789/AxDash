@@ -34,6 +34,32 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
 // Cache para composição de indicadores
 const indicadoresComposicaoCache = new Map<string, { componentes: any[]; timestamp: number }>();
 
+// Função para buscar vendas de clientes
+async function buscarVendasClientes(mes: number, ano: number): Promise<Lancamento[]> {
+  const startDate = `${ano}-${String(mes + 1).padStart(2, '0')}-01`;
+  const endDate = mes === 11 
+    ? `${ano + 1}-01-01`
+    : `${ano}-${String(mes + 2).padStart(2, '0')}-01`;
+
+  const { data: vendas = [] } = await supabase
+    .from('registro_de_vendas')
+    .select(`
+      id,
+      valor,
+      cliente:cliente_id(id, razao_social)
+    `)
+    .gte('data_venda', startDate)
+    .lt('data_venda', endDate)
+    .order('valor', { ascending: false });
+
+  return vendas.map(venda => ({
+    valor: venda.valor,
+    tipo: 'Receita',
+    cliente_id: venda.cliente?.id,
+    cliente: venda.cliente
+  }));
+}
+
 // Função auxiliar para buscar a composição de um indicador
 async function buscarComposicaoIndicador(indicadorId: string): Promise<any[]> {
   // Verifica o cache
@@ -151,6 +177,11 @@ export const getLancamentos = async (
   try {
     if (!filtros) return [];
 
+    // Se a tabela_origem for registro_venda, busca as vendas dos clientes
+    if (filtros.tabela_origem === 'registro_venda') {
+      return buscarVendasClientes(mes, ano);
+    }
+
     // Cria uma chave única para o cache
     const cacheKey = `${mes}-${ano}-${JSON.stringify(filtros)}`;
     
@@ -222,8 +253,8 @@ export const getLancamentos = async (
 };
 
 export const getTituloLancamento = (lancamento: Lancamento): string => {
+  if (lancamento.cliente?.razao_social) return lancamento.cliente.razao_social;
   if (lancamento.categoria?.nome) return lancamento.categoria.nome;
   if (lancamento.indicador?.nome) return lancamento.indicador.nome;
-  if (lancamento.cliente?.razao_social) return lancamento.cliente.razao_social;
   return 'Sem título';
 };

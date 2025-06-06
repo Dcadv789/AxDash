@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Building, ChevronDown } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { useUser } from '../../context/UserContext';
@@ -15,18 +15,32 @@ interface EmpresaFilterProps {
   className?: string;
 }
 
+// Cache global para armazenar as empresas
+const empresasCache = new Map<string, Empresa[]>();
+
 const EmpresaFilter: React.FC<EmpresaFilterProps> = ({ value, onChange, className = '' }) => {
   const { theme } = useTheme();
   const { user } = useUser();
   const isDark = theme === 'dark';
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchEmpresas() {
+    const fetchEmpresas = async () => {
       try {
         // Se o usuário for cliente, força o valor da empresa dele
         if (user?.role === 'cliente' && user?.empresa_id) {
+          // Verifica o cache primeiro
+          const cacheKey = `cliente-${user.empresa_id}`;
+          const cachedData = empresasCache.get(cacheKey);
+          
+          if (cachedData) {
+            setEmpresas(cachedData);
+            if (!value) {
+              onChange(cachedData[0].id);
+            }
+            return;
+          }
+
           const { data } = await supabase
             .from('empresas')
             .select('id, razao_social')
@@ -34,28 +48,42 @@ const EmpresaFilter: React.FC<EmpresaFilterProps> = ({ value, onChange, classNam
             .single();
 
           if (data) {
-            setEmpresas([data]);
-            onChange(data.id); // Força a seleção da empresa do cliente
+            const empresaData = [data];
+            setEmpresas(empresaData);
+            empresasCache.set(cacheKey, empresaData);
+            if (!value) {
+              onChange(data.id);
+            }
           }
           return;
         }
 
-        // Para outros tipos de usuário, busca todas as empresas
+        // Para outros tipos de usuário, verifica o cache global
+        const cacheKey = 'todas-empresas';
+        const cachedData = empresasCache.get(cacheKey);
+        
+        if (cachedData) {
+          setEmpresas(cachedData);
+          return;
+        }
+
+        // Se não estiver em cache, busca do servidor
         const { data } = await supabase
           .from('empresas')
           .select('id, razao_social')
           .order('razao_social');
 
-        if (data) setEmpresas(data);
+        if (data) {
+          setEmpresas(data);
+          empresasCache.set(cacheKey, data);
+        }
       } catch (error) {
         console.error('Erro ao buscar empresas:', error);
-      } finally {
-        setLoading(false);
       }
-    }
+    };
 
     fetchEmpresas();
-  }, [user, onChange]);
+  }, [user, value, onChange]);
 
   // Se for cliente, não mostra o filtro
   if (user?.role === 'cliente') {
@@ -72,10 +100,8 @@ const EmpresaFilter: React.FC<EmpresaFilterProps> = ({ value, onChange, classNam
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          disabled={loading}
           className={`w-full bg-transparent border-none focus:ring-0 text-sm font-medium appearance-none cursor-pointer pl-1 pr-8
             ${isDark ? 'text-gray-200' : 'text-gray-700'}
-            ${loading ? 'opacity-50' : ''}
             [&>option]:px-4 [&>option]:py-2
             [&>option]:bg-white [&>option]:dark:bg-gray-800
             [&>option]:dark:text-gray-200
