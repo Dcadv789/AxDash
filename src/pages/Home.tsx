@@ -138,6 +138,8 @@ const Home: React.FC = () => {
                         visualizacao.valor_atual || 0,
                         visualizacao.valor_anterior || 0
                       )}
+                      ordem={visualizacao.ordem}
+                      pagina="home"
                     />
                   ))
               )}

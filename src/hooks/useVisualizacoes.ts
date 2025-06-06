@@ -83,7 +83,7 @@ export const useVisualizacoes = (empresaId: string, mes: number, ano: number, pa
             // Processa os diferentes tipos de visualização
             switch (config.tipo_visualizacao) {
               case 'card': {
-                const { valorAtual, valorAnterior } = await processarCard(config.componentes, mes, ano, config.ordem);
+                const { valorAtual, valorAnterior } = await processarCard(config.componentes, mes, ano, config.ordem, pagina);
                 
                 // Tratamento especial para widget 10 na página de vendas
                 if (pagina === 'vendas' && config.ordem === 10) {
@@ -95,8 +95,8 @@ export const useVisualizacoes = (empresaId: string, mes: number, ano: number, pa
                 else if (pagina === 'vendas' && (config.ordem === 6 || config.ordem === 7)) {
                   const widgetOrdem1 = configVisualizacoes.find(v => v.ordem === 1);
                   if (widgetOrdem1) {
-                    const { valorAtual: valorBase } = await processarCard(widgetOrdem1.componentes, mes, ano, 1);
-                    const { valorAtual: valorBaseMesAnterior } = await processarCard(widgetOrdem1.componentes, mes === 0 ? 11 : mes - 1, mes === 0 ? ano - 1 : ano, 1);
+                    const { valorAtual: valorBase } = await processarCard(widgetOrdem1.componentes, mes, ano, 1, pagina);
+                    const { valorAtual: valorBaseMesAnterior } = await processarCard(widgetOrdem1.componentes, mes === 0 ? 11 : mes - 1, mes === 0 ? ano - 1 : ano, 1, pagina);
                     
                     const porcentagemAtual = (valorAtual / valorBase) * 100;
                     const porcentagemAnterior = (valorAnterior / valorBaseMesAnterior) * 100;
@@ -145,7 +145,7 @@ export const useVisualizacoes = (empresaId: string, mes: number, ano: number, pa
 };
 
 // Funções auxiliares otimizadas
-async function processarCard(componentes: any[], mes: number, ano: number, ordem: number) {
+async function processarCard(componentes: any[], mes: number, ano: number, ordem: number, pagina: string = 'home') {
   let valorAtual = 0;
   let valorAnterior = 0;
 

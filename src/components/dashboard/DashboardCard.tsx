@@ -10,6 +10,8 @@ interface DashboardCardProps {
   variation?: number;
   isPercentage?: boolean;
   isNumber?: boolean;
+  ordem?: number;
+  pagina?: string;
 }
 
 const DashboardCard: React.FC<DashboardCardProps> = ({
@@ -19,7 +21,9 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
   previousValue,
   variation,
   isPercentage,
-  isNumber
+  isNumber,
+  ordem,
+  pagina
 }) => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -57,6 +61,19 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
     if (isPercentage && previousValue !== undefined) {
       return currentValue - previousValue >= 0;
     }
+    
+    // Lógica especial para card de ordem 2 na página home (despesas)
+    if (pagina === 'home' && ordem === 2) {
+      // Para despesas (valores negativos), inverte a lógica:
+      // Se pagou menos (valor menos negativo), é uma redução (negativo)
+      // Se pagou mais (valor mais negativo), é um aumento (positivo)
+      if (previousValue !== undefined && previousValue < 0 && currentValue < 0) {
+        // Ambos são negativos (despesas)
+        // Se currentValue > previousValue (ex: -100 > -200), pagou menos, então é redução
+        return currentValue < previousValue;
+      }
+    }
+    
     return calculatedVariation >= 0;
   };
 
