@@ -36,59 +36,76 @@ const indicadoresComposicaoCache = new Map<string, { componentes: any[]; timesta
 
 // Função para buscar vendas de clientes
 async function buscarVendasClientes(mes: number, ano: number): Promise<Lancamento[]> {
-  const startDate = `${ano}-${String(mes + 1).padStart(2, '0')}-01`;
-  const endDate = mes === 11 
-    ? `${ano + 1}-01-01`
-    : `${ano}-${String(mes + 2).padStart(2, '0')}-01`;
+  try {
+    const startDate = `${ano}-${String(mes + 1).padStart(2, '0')}-01`;
+    const endDate = mes === 11 
+      ? `${ano + 1}-01-01`
+      : `${ano}-${String(mes + 2).padStart(2, '0')}-01`;
 
-  const { data: vendas = [] } = await supabase
-    .from('registro_de_vendas')
-    .select(`
-      id,
-      valor,
-      cliente:cliente_id(id, razao_social)
-    `)
-    .gte('data_venda', startDate)
-    .lt('data_venda', endDate)
-    .order('valor', { ascending: false });
+    const { data: vendas, error } = await supabase
+      .from('registro_de_vendas')
+      .select(`
+        id,
+        valor,
+        cliente:cliente_id(id, razao_social)
+      `)
+      .gte('data_venda', startDate)
+      .lt('data_venda', endDate)
+      .order('valor', { ascending: false });
 
-  return vendas.map(venda => ({
-    valor: venda.valor,
-    tipo: 'Receita',
-    cliente_id: venda.cliente?.id,
-    cliente: venda.cliente
-  }));
+    if (error) {
+      console.error('Erro ao buscar vendas de clientes:', error);
+      return [];
+    }
+
+    return (vendas || []).map(venda => ({
+      valor: venda.valor,
+      tipo: 'Receita',
+      cliente_id: venda.cliente?.id,
+      cliente: venda.cliente
+    }));
+  } catch (error) {
+    console.error('Erro ao buscar vendas de clientes:', error);
+    return [];
+  }
 }
 
 // Função auxiliar para buscar a composição de um indicador
 async function buscarComposicaoIndicador(indicadorId: string): Promise<any[]> {
-  // Verifica o cache
-  const cached = indicadoresComposicaoCache.get(indicadorId);
-  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-    return cached.componentes;
-  }
+  try {
+    // Verifica o cache
+    const cached = indicadoresComposicaoCache.get(indicadorId);
+    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+      return cached.componentes;
+    }
 
-  const { data, error } = await supabase
-    .from('indicadores_composicao')
-    .select(`
-      indicador_base_id,
-      componente_indicador_id,
-      componente_categoria_id
-    `)
-    .eq('indicador_base_id', indicadorId);
+    const { data, error } = await supabase
+      .from('indicadores_composicao')
+      .select(`
+        indicador_base_id,
+        componente_indicador_id,
+        componente_categoria_id
+      `)
+      .eq('indicador_base_id', indicadorId);
 
-  if (error) {
+    if (error) {
+      console.error('Erro ao buscar composição do indicador:', error);
+      return [];
+    }
+
+    const componentes = data || [];
+
+    // Atualiza o cache
+    indicadoresComposicaoCache.set(indicadorId, {
+      componentes,
+      timestamp: Date.now()
+    });
+
+    return componentes;
+  } catch (error) {
     console.error('Erro ao buscar composição do indicador:', error);
     return [];
   }
-
-  // Atualiza o cache
-  indicadoresComposicaoCache.set(indicadorId, {
-    componentes: data || [],
-    timestamp: Date.now()
-  });
-
-  return data || [];
 }
 
 // Função recursiva para buscar lançamentos de um indicador e seus componentes
@@ -98,75 +115,88 @@ async function buscarLancamentosRecursivos(
   indicadorId: string,
   visitados = new Set<string>()
 ): Promise<Lancamento[]> {
-  // Evita loops infinitos
-  if (visitados.has(indicadorId)) {
+  try {
+    // Evita loops infinitos
+    if (visitados.has(indicadorId)) {
+      return [];
+    }
+    visitados.add(indicadorId);
+
+    // Busca os lançamentos diretos do indicador
+    const { data: lancamentosDiretos, error: errorDiretos } = await supabase
+      .from('lancamentos')
+      .select(`
+        valor,
+        tipo,
+        categoria_id,
+        indicador_id,
+        cliente_id,
+        categoria:categorias(nome),
+        indicador:indicadores(nome),
+        cliente:clientes(razao_social)
+      `)
+      .eq('mes', mes + 1)
+      .eq('ano', ano)
+      .eq('indicador_id', indicadorId);
+
+    if (errorDiretos) {
+      console.error('Erro ao buscar lançamentos diretos:', errorDiretos);
+    }
+
+    // Busca a composição do indicador
+    const componentes = await buscarComposicaoIndicador(indicadorId);
+
+    // Busca lançamentos recursivamente para cada componente
+    const lancamentosComponentes = await Promise.all(
+      componentes.map(async (componente) => {
+        const lancamentos: Lancamento[] = [];
+
+        // Se tem indicador componente, busca recursivamente
+        if (componente.componente_indicador_id) {
+          const lancamentosIndicador = await buscarLancamentosRecursivos(
+            mes,
+            ano,
+            componente.componente_indicador_id,
+            visitados
+          );
+          lancamentos.push(...lancamentosIndicador);
+        }
+
+        // Se tem categoria componente, busca os lançamentos
+        if (componente.componente_categoria_id) {
+          const { data: lancamentosCategoria, error: errorCategoria } = await supabase
+            .from('lancamentos')
+            .select(`
+              valor,
+              tipo,
+              categoria_id,
+              indicador_id,
+              cliente_id,
+              categoria:categorias(nome),
+              indicador:indicadores(nome),
+              cliente:clientes(razao_social)
+            `)
+            .eq('mes', mes + 1)
+            .eq('ano', ano)
+            .eq('categoria_id', componente.componente_categoria_id);
+
+          if (errorCategoria) {
+            console.error('Erro ao buscar lançamentos da categoria:', errorCategoria);
+          } else {
+            lancamentos.push(...(lancamentosCategoria || []));
+          }
+        }
+
+        return lancamentos;
+      })
+    );
+
+    // Combina todos os lançamentos
+    return [...(lancamentosDiretos || []), ...lancamentosComponentes.flat()];
+  } catch (error) {
+    console.error('Erro na busca recursiva de lançamentos:', error);
     return [];
   }
-  visitados.add(indicadorId);
-
-  // Busca os lançamentos diretos do indicador
-  const { data: lancamentosDiretos = [] } = await supabase
-    .from('lancamentos')
-    .select(`
-      valor,
-      tipo,
-      categoria_id,
-      indicador_id,
-      cliente_id,
-      categoria:categorias(nome),
-      indicador:indicadores(nome),
-      cliente:clientes(razao_social)
-    `)
-    .eq('mes', mes + 1)
-    .eq('ano', ano)
-    .eq('indicador_id', indicadorId);
-
-  // Busca a composição do indicador
-  const componentes = await buscarComposicaoIndicador(indicadorId);
-
-  // Busca lançamentos recursivamente para cada componente
-  const lancamentosComponentes = await Promise.all(
-    componentes.map(async (componente) => {
-      const lancamentos: Lancamento[] = [];
-
-      // Se tem indicador componente, busca recursivamente
-      if (componente.componente_indicador_id) {
-        const lancamentosIndicador = await buscarLancamentosRecursivos(
-          mes,
-          ano,
-          componente.componente_indicador_id,
-          visitados
-        );
-        lancamentos.push(...lancamentosIndicador);
-      }
-
-      // Se tem categoria componente, busca os lançamentos
-      if (componente.componente_categoria_id) {
-        const { data: lancamentosCategoria = [] } = await supabase
-          .from('lancamentos')
-          .select(`
-            valor,
-            tipo,
-            categoria_id,
-            indicador_id,
-            cliente_id,
-            categoria:categorias(nome),
-            indicador:indicadores(nome),
-            cliente:clientes(razao_social)
-          `)
-          .eq('mes', mes + 1)
-          .eq('ano', ano)
-          .eq('categoria_id', componente.componente_categoria_id);
-
-        lancamentos.push(...lancamentosCategoria);
-      }
-
-      return lancamentos;
-    })
-  );
-
-  // Combina todos os lançamentos
-  return [...lancamentosDiretos, ...lancamentosComponentes.flat()];
 }
 
 export const getLancamentos = async (
@@ -235,7 +265,13 @@ export const getLancamentos = async (
         }
       }
 
-      const { data } = await query;
+      const { data, error } = await query;
+      
+      if (error) {
+        console.error('Erro ao buscar lançamentos:', error);
+        return [];
+      }
+
       lancamentos = data || [];
     }
 

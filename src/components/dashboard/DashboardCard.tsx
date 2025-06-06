@@ -44,6 +44,24 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
     }).format(value);
   };
 
+  const formatVariation = () => {
+    if (isPercentage && previousValue !== undefined) {
+      // Para percentuais, mostra a diferença em pontos percentuais
+      const pontosPercentuais = currentValue - previousValue;
+      return `${Math.abs(pontosPercentuais).toFixed(2)} p.p.`;
+    }
+    return `${Math.abs(calculatedVariation).toFixed(2)}%`;
+  };
+
+  const getVariationDirection = () => {
+    if (isPercentage && previousValue !== undefined) {
+      return currentValue - previousValue >= 0;
+    }
+    return calculatedVariation >= 0;
+  };
+
+  const variationIsPositive = getVariationDirection();
+
   return (
     <div className={`rounded-xl p-5 relative overflow-hidden transition-all duration-200 h-[140px]
       ${isDark ? 'bg-[#151515] hover:bg-gray-800/50' : 'bg-white hover:bg-gray-50'}`}
@@ -66,18 +84,18 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
           </p>
           {previousValue !== undefined && (
             <p className={`text-sm mt-0.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-              Anterior: {formatValue(isPercentage ? currentValue - previousValue : previousValue)}
+              Anterior: {formatValue(previousValue)}
             </p>
           )}
         </div>
         {previousValue !== undefined && calculatedVariation !== 0 && (
           <div className="flex flex-col items-end">
             <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-sm font-medium
-              ${isPositive 
+              ${variationIsPositive 
                 ? 'text-green-500 bg-green-500/10' 
                 : 'text-red-500 bg-red-500/10'}`}>
-              <ArrowIcon className="h-4 w-4" />
-              <span>{isPercentage ? `${Math.abs(previousValue).toFixed(2)} p.p.` : `${Math.abs(calculatedVariation).toFixed(2)}%`}</span>
+              {variationIsPositive ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
+              <span>{formatVariation()}</span>
             </div>
             <span className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
               vs. mês anterior

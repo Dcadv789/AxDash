@@ -85,10 +85,11 @@ export const useVisualizacoes = (empresaId: string, mes: number, ano: number, pa
               case 'card': {
                 const { valorAtual, valorAnterior } = await processarCard(config.componentes, mes, ano, config.ordem);
                 
-                // Tratamento especial para widget 10
+                // Tratamento especial para widget 10 na página de vendas
                 if (pagina === 'vendas' && config.ordem === 10) {
-                  visualizacao.valor_atual = valorAtual / 10;
-                  visualizacao.valor_anterior = valorAnterior / 10;
+                  // Divide por 100 para converter em percentual
+                  visualizacao.valor_atual = valorAtual / 100;
+                  visualizacao.valor_anterior = valorAnterior / 100;
                 } 
                 // Tratamento especial para ordens 6 e 7 na página de vendas
                 else if (pagina === 'vendas' && (config.ordem === 6 || config.ordem === 7)) {

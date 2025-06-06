@@ -61,7 +61,7 @@ const Graficos: React.FC = () => {
 
         const componentesAgrupados: Record<string, Componente[]> = {};
         
-        componentes?.forEach(comp => {
+        (componentes || []).forEach(comp => {
           const visualizacaoId = comp.visualizacao_id;
           if (!componentesAgrupados[visualizacaoId]) {
             componentesAgrupados[visualizacaoId] = [];
@@ -86,12 +86,12 @@ const Graficos: React.FC = () => {
           }
         });
 
-        // Seleciona o primeiro componente de cada gráfico
-        Object.keys(componentesAgrupados).forEach(visualizacaoId => {
-          if (componentesAgrupados[visualizacaoId].length > 0) {
-            componentesAgrupados[visualizacaoId][0].selected = true;
-          }
-        });
+        // Removido: não seleciona nenhum componente por padrão
+        // Object.keys(componentesAgrupados).forEach(visualizacaoId => {
+        //   if (componentesAgrupados[visualizacaoId].length > 0) {
+        //     componentesAgrupados[visualizacaoId][0].selected = true;
+        //   }
+        // });
 
         setComponentesPorGrafico(componentesAgrupados);
       } catch (error) {
