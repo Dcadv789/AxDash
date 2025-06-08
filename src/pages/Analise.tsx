@@ -30,6 +30,18 @@ const Analise: React.FC = () => {
 
   const calculateVariation = (atual: number, anterior: number) => {
     if (anterior === 0) return atual > 0 ? 100 : 0;
+    
+    // Lógica corrigida para valores negativos (despesas/pagamentos)
+    if (atual < 0 && anterior < 0) {
+      // Para valores negativos (despesas), inverte a lógica:
+      // Se pagou menos (valor menos negativo), é uma redução (positivo)
+      // Se pagou mais (valor mais negativo), é um aumento (negativo)
+      // Ex: de -200 para -100 = redução de 50% no gasto (positivo)
+      // Ex: de -100 para -200 = aumento de 100% no gasto (negativo)
+      return ((anterior - atual) / Math.abs(anterior)) * 100;
+    }
+    
+    // Para valores positivos, mantém a lógica normal
     return ((atual - anterior) / Math.abs(anterior)) * 100;
   };
 
@@ -91,7 +103,7 @@ const Analise: React.FC = () => {
 
   const renderLoadingChart = () => (
     <div className={`h-full rounded-xl p-4 ${isDark ? 'bg-[#151515]' : 'bg-white'}`}>
-      <div className={`h-6 w-48 rounded mb-4 ${isDark ? 'bg-gray-800' : 'bg-gray-200'}`} />
+      <div className={`h-6 w-48 rounded mb-4 animate-pulse ${isDark ? 'bg-gray-800' : 'bg-gray-200'}`} />
       <div className="h-[calc(100%-2.5rem)] flex items-center justify-center">
         <Loader2 className={`h-8 w-8 animate-spin ${isDark ? 'text-gray-600' : 'text-gray-400'}`} />
       </div>
@@ -100,7 +112,7 @@ const Analise: React.FC = () => {
 
   const renderLoadingList = () => (
     <div className={`rounded-xl p-6 h-full ${isDark ? 'bg-[#151515]' : 'bg-white'}`}>
-      <div className={`h-6 w-48 rounded mb-6 ${isDark ? 'bg-gray-800' : 'bg-gray-200'}`} />
+      <div className={`h-6 w-48 rounded mb-6 animate-pulse ${isDark ? 'bg-gray-800' : 'bg-gray-200'}`} />
       <div className="space-y-2">
         {[1, 2, 3, 4, 5].map((i) => (
           <div

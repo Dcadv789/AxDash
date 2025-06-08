@@ -15,29 +15,34 @@ interface EmpresaFilterProps {
   className?: string;
 }
 
-// Cache global para armazenar as empresas
-const empresasCache = new Map<string, Empresa[]>();
+// Cache global para armazenar as empresas com duração maior
+const empresasCache = new Map<string, { data: Empresa[]; timestamp: number }>();
+const CACHE_DURATION = 10 * 60 * 1000; // 10 minutos
 
 const EmpresaFilter: React.FC<EmpresaFilterProps> = ({ value, onChange, className = '' }) => {
   const { theme } = useTheme();
   const { user } = useUser();
   const isDark = theme === 'dark';
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const fetchEmpresas = async () => {
       try {
+        setLoading(true);
+
         // Se o usuário for cliente, força o valor da empresa dele
         if (user?.role === 'cliente' && user?.empresa_id) {
           // Verifica o cache primeiro
           const cacheKey = `cliente-${user.empresa_id}`;
           const cachedData = empresasCache.get(cacheKey);
           
-          if (cachedData) {
-            setEmpresas(cachedData);
+          if (cachedData && Date.now() - cachedData.timestamp < CACHE_DURATION) {
+            setEmpresas(cachedData.data);
             if (!value) {
-              onChange(cachedData[0].id);
+              onChange(cachedData.data[0].id);
             }
+            setLoading(false);
             return;
           }
 
@@ -50,11 +55,12 @@ const EmpresaFilter: React.FC<EmpresaFilterProps> = ({ value, onChange, classNam
           if (data) {
             const empresaData = [data];
             setEmpresas(empresaData);
-            empresasCache.set(cacheKey, empresaData);
+            empresasCache.set(cacheKey, { data: empresaData, timestamp: Date.now() });
             if (!value) {
               onChange(data.id);
             }
           }
+          setLoading(false);
           return;
         }
 
@@ -62,8 +68,9 @@ const EmpresaFilter: React.FC<EmpresaFilterProps> = ({ value, onChange, classNam
         const cacheKey = 'todas-empresas';
         const cachedData = empresasCache.get(cacheKey);
         
-        if (cachedData) {
-          setEmpresas(cachedData);
+        if (cachedData && Date.now() - cachedData.timestamp < CACHE_DURATION) {
+          setEmpresas(cachedData.data);
+          setLoading(false);
           return;
         }
 
@@ -71,14 +78,18 @@ const EmpresaFilter: React.FC<EmpresaFilterProps> = ({ value, onChange, classNam
         const { data } = await supabase
           .from('empresas')
           .select('id, razao_social')
-          .order('razao_social');
+          .eq('ativo', true) // Adiciona filtro para empresas ativas
+          .order('razao_social')
+          .limit(100); // Limita para performance
 
         if (data) {
           setEmpresas(data);
-          empresasCache.set(cacheKey, data);
+          empresasCache.set(cacheKey, { data, timestamp: Date.now() });
         }
       } catch (error) {
         console.error('Erro ao buscar empresas:', error);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -97,25 +108,33 @@ const EmpresaFilter: React.FC<EmpresaFilterProps> = ({ value, onChange, classNam
           ? 'bg-gray-800 hover:bg-gray-700' 
           : 'bg-gray-100 hover:bg-gray-200'}`}>
         <Building className={`h-4 w-4 flex-shrink-0 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
-        <select
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className={`w-full bg-transparent border-none focus:ring-0 text-sm font-medium appearance-none cursor-pointer pl-1 pr-8
-            ${isDark ? 'text-gray-200' : 'text-gray-700'}
-            [&>option]:px-4 [&>option]:py-2
-            [&>option]:bg-white [&>option]:dark:bg-gray-800
-            [&>option]:dark:text-gray-200
-            [&>option:hover]:bg-indigo-500 [&>option:hover]:text-white
-            [&>option]:truncate`}
-        >
-          <option value="">Todas as empresas</option>
-          {empresas.map((empresa) => (
-            <option key={empresa.id} value={empresa.id} title={empresa.razao_social}>
-              {empresa.razao_social}
-            </option>
-          ))}
-        </select>
-        <ChevronDown className={`h-4 w-4 absolute right-4 pointer-events-none flex-shrink-0 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+        {loading ? (
+          <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+            Carregando...
+          </span>
+        ) : (
+          <>
+            <select
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              className={`w-full bg-transparent border-none focus:ring-0 text-sm font-medium appearance-none cursor-pointer pl-1 pr-8
+                ${isDark ? 'text-gray-200' : 'text-gray-700'}
+                [&>option]:px-4 [&>option]:py-2
+                [&>option]:bg-white [&>option]:dark:bg-gray-800
+                [&>option]:dark:text-gray-200
+                [&>option:hover]:bg-indigo-500 [&>option:hover]:text-white
+                [&>option]:truncate`}
+            >
+              <option value="">Todas as empresas</option>
+              {empresas.map((empresa) => (
+                <option key={empresa.id} value={empresa.id} title={empresa.razao_social}>
+                  {empresa.razao_social}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className={`h-4 w-4 absolute right-4 pointer-events-none flex-shrink-0 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+          </>
+        )}
       </div>
     </div>
   );
