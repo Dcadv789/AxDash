@@ -38,7 +38,8 @@ const Dre: React.FC = () => {
 
       setLoading(true);
       try {
-        const data = await getDreData(selectedMonth, selectedYear);
+        // Passa o ID da empresa para o serviço DRE
+        const data = await getDreData(selectedMonth, selectedYear, selectedEmpresa);
         setContas(data);
       } catch (error) {
         console.error('Erro ao carregar DRE:', error);
