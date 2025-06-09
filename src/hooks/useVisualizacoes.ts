@@ -25,7 +25,7 @@ export const useVisualizacoes = (empresaId: string, mes: number, ano: number, pa
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Cria uma chave única para o cache baseada nos parâmetros
+  // Cria uma chave única para o cache baseada nos parâmetros COM EMPRESA
   const cacheKey = useMemo(() => 
     `${empresaId}-${mes}-${ano}-${pagina}`, 
     [empresaId, mes, ano, pagina]
@@ -52,7 +52,7 @@ export const useVisualizacoes = (empresaId: string, mes: number, ano: number, pa
           return;
         }
 
-        console.log('🚀 Iniciando busca otimizada de visualizações...');
+        console.log('🚀 Iniciando busca otimizada de visualizações COM FILTRO DE EMPRESA...');
         const startTime = Date.now();
 
         // Busca configurações com cache separado
@@ -81,7 +81,10 @@ export const useVisualizacoes = (empresaId: string, mes: number, ano: number, pa
             .order('ordem');
 
           if (error) {
-            if (error.message?.includes('Failed to fetch') || error.name === 'TypeError') {
+            if (error.message?.includes('Failed to fetch') || 
+                error.name === 'TypeError' || 
+                error.message?.includes('NetworkError') ||
+                error.message?.includes('fetch')) {
               throw new Error('Erro de conectividade. Verifique se o Supabase está configurado corretamente para aceitar requisições do localhost:5173');
             }
             throw error;
@@ -94,7 +97,7 @@ export const useVisualizacoes = (empresaId: string, mes: number, ano: number, pa
 
         console.log(`⚡ Configurações prontas em ${Date.now() - startTime}ms`);
 
-        // Processa as visualizações com otimizações agressivas
+        // Processa as visualizações com otimizações agressivas E FILTRO DE EMPRESA
         const visualizacoesProcessadas = await Promise.all(
           configVisualizacoes.map(async (config) => {
             const visualizacao: Visualizacao = {
@@ -110,10 +113,17 @@ export const useVisualizacoes = (empresaId: string, mes: number, ano: number, pa
             }
 
             try {
-              // Processa os diferentes tipos de visualização
+              // Processa os diferentes tipos de visualização COM FILTRO DE EMPRESA
               switch (config.tipo_visualizacao) {
                 case 'card': {
-                  const { valorAtual, valorAnterior } = await processarCardOtimizado(config.componentes, mes, ano, config.ordem, pagina);
+                  const { valorAtual, valorAnterior } = await processarCardOtimizado(
+                    config.componentes, 
+                    mes, 
+                    ano, 
+                    config.ordem, 
+                    pagina,
+                    empresaId // PASSA A EMPRESA
+                  );
                   
                   // Tratamento especial para widget 10 na página de vendas
                   if (pagina === 'vendas' && config.ordem === 10) {
@@ -124,8 +134,22 @@ export const useVisualizacoes = (empresaId: string, mes: number, ano: number, pa
                   else if (pagina === 'vendas' && (config.ordem === 6 || config.ordem === 7)) {
                     const widgetOrdem1 = configVisualizacoes.find(v => v.ordem === 1);
                     if (widgetOrdem1) {
-                      const { valorAtual: valorBase } = await processarCardOtimizado(widgetOrdem1.componentes, mes, ano, 1, pagina);
-                      const { valorAtual: valorBaseMesAnterior } = await processarCardOtimizado(widgetOrdem1.componentes, mes === 0 ? 11 : mes - 1, mes === 0 ? ano - 1 : ano, 1, pagina);
+                      const { valorAtual: valorBase } = await processarCardOtimizado(
+                        widgetOrdem1.componentes, 
+                        mes, 
+                        ano, 
+                        1, 
+                        pagina,
+                        empresaId // PASSA A EMPRESA
+                      );
+                      const { valorAtual: valorBaseMesAnterior } = await processarCardOtimizado(
+                        widgetOrdem1.componentes, 
+                        mes === 0 ? 11 : mes - 1, 
+                        mes === 0 ? ano - 1 : ano, 
+                        1, 
+                        pagina,
+                        empresaId // PASSA A EMPRESA
+                      );
                       
                       const porcentagemAtual = valorBase !== 0 ? (valorAtual / valorBase) * 100 : 0;
                       const porcentagemAnterior = valorBaseMesAnterior !== 0 ? (valorAnterior / valorBaseMesAnterior) * 100 : 0;
@@ -141,19 +165,29 @@ export const useVisualizacoes = (empresaId: string, mes: number, ano: number, pa
                 }
 
                 case 'lista':
-                  visualizacao.itens = await processarListaOtimizada(config.componentes, mes, ano);
+                  visualizacao.itens = await processarListaOtimizada(config.componentes, mes, ano, empresaId);
                   break;
 
                 case 'grafico':
-                  visualizacao.dados_grafico = await processarGraficoOtimizado(config.componentes, mes, ano);
+                  visualizacao.dados_grafico = await processarGraficoOtimizado(config.componentes, mes, ano, empresaId);
                   break;
               }
-            } catch (componentError) {
+            } catch (componentError: any) {
               console.error(`Erro ao processar componente ${config.id}:`, componentError);
-              // Continua com valores padrão em caso de erro
+              
+              // Se for erro de conectividade, propaga para o nível superior
+              if (componentError.message?.includes('Erro de conectividade')) {
+                throw componentError;
+              }
+              
+              // Para outros erros, continua com valores padrão
               if (config.tipo_visualizacao === 'card') {
                 visualizacao.valor_atual = 0;
                 visualizacao.valor_anterior = 0;
+              } else if (config.tipo_visualizacao === 'lista') {
+                visualizacao.itens = [];
+              } else if (config.tipo_visualizacao === 'grafico') {
+                visualizacao.dados_grafico = [];
               }
             }
 
@@ -161,7 +195,7 @@ export const useVisualizacoes = (empresaId: string, mes: number, ano: number, pa
           })
         );
 
-        console.log(`🎯 Visualizações processadas em ${Date.now() - startTime}ms`);
+        console.log(`🎯 Visualizações processadas em ${Date.now() - startTime}ms COM FILTRO DE EMPRESA`);
 
         // Atualiza o cache
         visualizacoesCache.set(cacheKey, {
@@ -173,7 +207,10 @@ export const useVisualizacoes = (empresaId: string, mes: number, ano: number, pa
       } catch (error: any) {
         console.error('Erro ao buscar visualizações:', error);
         
-        if (error.message?.includes('Erro de conectividade') || error.message?.includes('Failed to fetch')) {
+        if (error.message?.includes('Erro de conectividade') || 
+            error.message?.includes('Failed to fetch') ||
+            error.message?.includes('NetworkError') ||
+            error.name === 'TypeError') {
           setError('Erro de conectividade. Verifique se o Supabase está configurado corretamente para aceitar requisições do localhost:5173');
         } else {
           setError(`Erro ao carregar visualizações: ${error.message || 'Erro desconhecido'}`);
@@ -189,44 +226,27 @@ export const useVisualizacoes = (empresaId: string, mes: number, ano: number, pa
   return { visualizacoes, loading, error };
 };
 
-// Cache para lançamentos por período
+// Cache para lançamentos por período COM EMPRESA
 const lancamentosCache = new Map<string, { data: any[]; timestamp: number }>();
 
-// Função otimizada para processar cards
-async function processarCardOtimizado(componentes: any[], mes: number, ano: number, ordem: number, pagina: string = 'home') {
+// Função otimizada para processar cards COM FILTRO DE EMPRESA
+async function processarCardOtimizado(
+  componentes: any[], 
+  mes: number, 
+  ano: number, 
+  ordem: number, 
+  pagina: string = 'home',
+  empresaId: string // NOVO PARÂMETRO
+) {
   let valorAtual = 0;
   let valorAnterior = 0;
 
-  // Se a ordem for 5, calcula o saldo acumulado (mantém lógica original)
-  if (ordem === 5) {
-    for (let anoAtual = 2024; anoAtual <= ano; anoAtual++) {
-      const mesInicial = anoAtual === 2024 ? 0 : 0;
-      const mesFinal = anoAtual === ano ? mes : 11;
-
-      for (let mesAtual = mesInicial; mesAtual <= mesFinal; mesAtual++) {
-        const lancamentosMes = await Promise.all(
-          componentes.map(componente =>
-            getLancamentos(mesAtual, anoAtual, {
-              categoria_id: componente.categoria?.id,
-              indicador_id: componente.indicador?.id,
-              tabela_origem: componente.tabela_origem,
-              todos: componente.todos,
-            })
-          )
-        );
-
-        valorAtual += lancamentosMes.flat().reduce((acc, lanc) => 
-          acc + (lanc.tipo === 'Receita' ? lanc.valor : -lanc.valor), 
-          0
-        );
-      }
-    }
-
-    // Para o valor anterior, calculamos até o mês anterior
-    if (mes > 0) {
+  try {
+    // Se a ordem for 5, calcula o saldo acumulado (mantém lógica original)
+    if (ordem === 5) {
       for (let anoAtual = 2024; anoAtual <= ano; anoAtual++) {
         const mesInicial = anoAtual === 2024 ? 0 : 0;
-        const mesFinal = anoAtual === ano ? mes - 1 : 11;
+        const mesFinal = anoAtual === ano ? mes : 11;
 
         for (let mesAtual = mesInicial; mesAtual <= mesFinal; mesAtual++) {
           const lancamentosMes = await Promise.all(
@@ -236,38 +256,75 @@ async function processarCardOtimizado(componentes: any[], mes: number, ano: numb
                 indicador_id: componente.indicador?.id,
                 tabela_origem: componente.tabela_origem,
                 todos: componente.todos,
-              })
+              }, empresaId) // PASSA A EMPRESA
             )
           );
 
-          valorAnterior += lancamentosMes.flat().reduce((acc, lanc) => 
+          valorAtual += lancamentosMes.flat().reduce((acc, lanc) => 
             acc + (lanc.tipo === 'Receita' ? lanc.valor : -lanc.valor), 
             0
           );
         }
       }
+
+      // Para o valor anterior, calculamos até o mês anterior
+      if (mes > 0) {
+        for (let anoAtual = 2024; anoAtual <= ano; anoAtual++) {
+          const mesInicial = anoAtual === 2024 ? 0 : 0;
+          const mesFinal = anoAtual === ano ? mes - 1 : 11;
+
+          for (let mesAtual = mesInicial; mesAtual <= mesFinal; mesAtual++) {
+            const lancamentosMes = await Promise.all(
+              componentes.map(componente =>
+                getLancamentos(mesAtual, anoAtual, {
+                  categoria_id: componente.categoria?.id,
+                  indicador_id: componente.indicador?.id,
+                  tabela_origem: componente.tabela_origem,
+                  todos: componente.todos,
+                }, empresaId) // PASSA A EMPRESA
+              )
+            );
+
+            valorAnterior += lancamentosMes.flat().reduce((acc, lanc) => 
+              acc + (lanc.tipo === 'Receita' ? lanc.valor : -lanc.valor), 
+              0
+            );
+          }
+        }
+      }
+    } else {
+      // Para outras ordens, usa cache agressivo COM FILTRO DE EMPRESA
+      const mesAnterior = mes === 0 ? 11 : mes - 1;
+      const anoAnterior = mes === 0 ? ano - 1 : ano;
+
+      // Busca lançamentos com cache COM EMPRESA
+      const [lancamentosAtuais, lancamentosAnteriores] = await Promise.all([
+        buscarLancamentosComCache(mes, ano, componentes, empresaId),
+        buscarLancamentosComCache(mesAnterior, anoAnterior, componentes, empresaId)
+      ]);
+
+      valorAtual = calcularSomaLancamentos(lancamentosAtuais);
+      valorAnterior = calcularSomaLancamentos(lancamentosAnteriores);
     }
-  } else {
-    // Para outras ordens, usa cache agressivo
-    const mesAnterior = mes === 0 ? 11 : mes - 1;
-    const anoAnterior = mes === 0 ? ano - 1 : ano;
-
-    // Busca lançamentos com cache
-    const [lancamentosAtuais, lancamentosAnteriores] = await Promise.all([
-      buscarLancamentosComCache(mes, ano, componentes),
-      buscarLancamentosComCache(mesAnterior, anoAnterior, componentes)
-    ]);
-
-    valorAtual = calcularSomaLancamentos(lancamentosAtuais);
-    valorAnterior = calcularSomaLancamentos(lancamentosAnteriores);
+  } catch (error: any) {
+    console.error('Erro ao processar card:', error);
+    
+    // Se for erro de conectividade, propaga
+    if (error.message?.includes('Erro de conectividade')) {
+      throw error;
+    }
+    
+    // Para outros erros, retorna valores zerados
+    valorAtual = 0;
+    valorAnterior = 0;
   }
 
   return { valorAtual, valorAnterior };
 }
 
-// Função para buscar lançamentos com cache agressivo
-async function buscarLancamentosComCache(mes: number, ano: number, componentes: any[]) {
-  const cacheKey = `${mes}-${ano}-${JSON.stringify(componentes.map(c => ({ 
+// Função para buscar lançamentos com cache agressivo COM FILTRO DE EMPRESA
+async function buscarLancamentosComCache(mes: number, ano: number, componentes: any[], empresaId: string) {
+  const cacheKey = `${mes}-${ano}-${empresaId}-${JSON.stringify(componentes.map(c => ({ 
     categoria_id: c.categoria?.id, 
     indicador_id: c.indicador?.id, 
     tabela_origem: c.tabela_origem,
@@ -279,84 +336,137 @@ async function buscarLancamentosComCache(mes: number, ano: number, componentes: 
     return cached.data;
   }
 
-  const lancamentos = await Promise.all(
-    componentes.map(componente =>
-      getLancamentos(mes, ano, {
-        categoria_id: componente.categoria?.id,
-        indicador_id: componente.indicador?.id,
-        tabela_origem: componente.tabela_origem,
-        todos: componente.todos,
-      })
-    )
-  );
+  try {
+    const lancamentos = await Promise.all(
+      componentes.map(componente =>
+        getLancamentos(mes, ano, {
+          categoria_id: componente.categoria?.id,
+          indicador_id: componente.indicador?.id,
+          tabela_origem: componente.tabela_origem,
+          todos: componente.todos,
+        }, empresaId) // PASSA A EMPRESA
+      )
+    );
 
-  const result = lancamentos.flat();
-  lancamentosCache.set(cacheKey, { data: result, timestamp: Date.now() });
-  
-  return result;
-}
-
-// Função otimizada para processar listas
-async function processarListaOtimizada(componentes: any[], mes: number, ano: number) {
-  const lancamentos = await buscarLancamentosComCache(mes, ano, componentes);
-  
-  const itens = lancamentos.map(lancamento => ({
-    titulo: getTituloLancamento(lancamento),
-    valor: lancamento.valor,
-    tipo: lancamento.tipo,
-  }));
-
-  return itens.sort((a, b) => b.valor - a.valor).slice(0, 10); // Limita a 10 itens para performance
-}
-
-// Função otimizada para processar gráficos - CORRIGIDA para manter apenas 2 elementos
-async function processarGraficoOtimizado(componentes: any[], mes: number, ano: number) {
-  const dadosGrafico = [];
-  const mesesProcessar = Array.from({ length: 13 }, (_, i) => {
-    let mesAtual = mes - (12 - i);
-    let anoAtual = ano;
-    while (mesAtual < 0) {
-      mesAtual += 12;
-      anoAtual--;
+    const result = lancamentos.flat();
+    lancamentosCache.set(cacheKey, { data: result, timestamp: Date.now() });
+    
+    return result;
+  } catch (error: any) {
+    console.error('Erro ao buscar lançamentos com cache:', error);
+    
+    // Se for erro de conectividade, propaga
+    if (error.message?.includes('Erro de conectividade')) {
+      throw error;
     }
-    return { mes: mesAtual, ano: anoAtual };
-  });
+    
+    // Para outros erros, retorna array vazio
+    return [];
+  }
+}
 
-  // Busca dados para todos os meses em paralelo com cache
-  const dadosPorMes = await Promise.all(
-    mesesProcessar.map(async ({ mes: mesAtual, ano: anoAtual }) => {
-      const dadosMes: any = {
-        name: `${mesAtual + 1}/${anoAtual}`
-      };
+// Função otimizada para processar listas COM FILTRO DE EMPRESA
+async function processarListaOtimizada(componentes: any[], mes: number, ano: number, empresaId: string) {
+  try {
+    const lancamentos = await buscarLancamentosComCache(mes, ano, componentes, empresaId);
+    
+    const itens = lancamentos.map(lancamento => ({
+      titulo: getTituloLancamento(lancamento),
+      valor: lancamento.valor,
+      tipo: lancamento.tipo,
+    }));
 
-      // Processa cada componente separadamente para manter a estrutura original
-      const lancamentosPorComponente = await Promise.all(
-        componentes.map(async (componente) => {
-          const lancamentos = await getLancamentos(mesAtual, anoAtual, {
-            categoria_id: componente.categoria?.id,
-            indicador_id: componente.indicador?.id,
-            tabela_origem: componente.tabela_origem,
-            todos: componente.todos,
+    return itens.sort((a, b) => b.valor - a.valor).slice(0, 10); // Limita a 10 itens para performance
+  } catch (error: any) {
+    console.error('Erro ao processar lista:', error);
+    
+    // Se for erro de conectividade, propaga
+    if (error.message?.includes('Erro de conectividade')) {
+      throw error;
+    }
+    
+    // Para outros erros, retorna array vazio
+    return [];
+  }
+}
+
+// Função otimizada para processar gráficos COM FILTRO DE EMPRESA
+async function processarGraficoOtimizado(componentes: any[], mes: number, ano: number, empresaId: string) {
+  try {
+    const dadosGrafico = [];
+    const mesesProcessar = Array.from({ length: 13 }, (_, i) => {
+      let mesAtual = mes - (12 - i);
+      let anoAtual = ano;
+      while (mesAtual < 0) {
+        mesAtual += 12;
+        anoAtual--;
+      }
+      return { mes: mesAtual, ano: anoAtual };
+    });
+
+    // Busca dados para todos os meses em paralelo com cache COM FILTRO DE EMPRESA
+    const dadosPorMes = await Promise.all(
+      mesesProcessar.map(async ({ mes: mesAtual, ano: anoAtual }) => {
+        const dadosMes: any = {
+          name: `${mesAtual + 1}/${anoAtual}`
+        };
+
+        try {
+          // Processa cada componente separadamente para manter a estrutura original
+          const lancamentosPorComponente = await Promise.all(
+            componentes.map(async (componente) => {
+              const lancamentos = await getLancamentos(mesAtual, anoAtual, {
+                categoria_id: componente.categoria?.id,
+                indicador_id: componente.indicador?.id,
+                tabela_origem: componente.tabela_origem,
+                todos: componente.todos,
+              }, empresaId); // PASSA A EMPRESA
+
+              const chave = componente.categoria?.nome || 
+                           componente.indicador?.nome || 
+                           'Total';
+
+              return { chave, valor: calcularSomaLancamentos(lancamentos) };
+            })
+          );
+
+          // Adiciona cada componente como uma série separada no gráfico
+          lancamentosPorComponente.forEach(({ chave, valor }) => {
+            dadosMes[chave] = valor;
           });
+        } catch (error: any) {
+          console.error(`Erro ao processar dados do mês ${mesAtual}/${anoAtual}:`, error);
+          
+          // Se for erro de conectividade, propaga
+          if (error.message?.includes('Erro de conectividade')) {
+            throw error;
+          }
+          
+          // Para outros erros, adiciona valores zerados
+          componentes.forEach(componente => {
+            const chave = componente.categoria?.nome || 
+                         componente.indicador?.nome || 
+                         'Total';
+            dadosMes[chave] = 0;
+          });
+        }
 
-          const chave = componente.categoria?.nome || 
-                       componente.indicador?.nome || 
-                       'Total';
+        return dadosMes;
+      })
+    );
 
-          return { chave, valor: calcularSomaLancamentos(lancamentos) };
-        })
-      );
-
-      // Adiciona cada componente como uma série separada no gráfico
-      lancamentosPorComponente.forEach(({ chave, valor }) => {
-        dadosMes[chave] = valor;
-      });
-
-      return dadosMes;
-    })
-  );
-
-  return dadosPorMes;
+    return dadosPorMes;
+  } catch (error: any) {
+    console.error('Erro ao processar gráfico:', error);
+    
+    // Se for erro de conectividade, propaga
+    if (error.message?.includes('Erro de conectividade')) {
+      throw error;
+    }
+    
+    // Para outros erros, retorna array vazio
+    return [];
+  }
 }
 
 function calcularSomaLancamentos(lancamentos: any[]) {

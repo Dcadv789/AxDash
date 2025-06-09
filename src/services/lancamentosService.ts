@@ -27,7 +27,7 @@ interface ComponenteFiltro {
   todos?: boolean;
 }
 
-// Cache mais agressivo para lançamentos
+// Cache mais agressivo para lançamentos POR EMPRESA
 const lancamentosCache = new Map<string, { data: Lancamento[]; timestamp: number }>();
 const CACHE_DURATION = 90 * 1000; // 90 segundos - cache mais agressivo
 
@@ -35,23 +35,26 @@ const CACHE_DURATION = 90 * 1000; // 90 segundos - cache mais agressivo
 const indicadoresComposicaoCache = new Map<string, { componentes: any[]; timestamp: number }>();
 const INDICADORES_CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
 
-// Cache para vendas de clientes
+// Cache para vendas de clientes POR EMPRESA
 const vendasClientesCache = new Map<string, { data: Lancamento[]; timestamp: number }>();
 
 // Função para tratar erros de conectividade
 function handleConnectionError(error: any, context: string): never {
   console.error(`${context}:`, error);
   
-  if (error.message?.includes('Failed to fetch') || error.name === 'TypeError') {
-    throw new Error(`Erro de conectividade em ${context}. Verifique a configuração do Supabase.`);
+  if (error.message?.includes('Failed to fetch') || 
+      error.name === 'TypeError' || 
+      error.message?.includes('NetworkError') ||
+      error.message?.includes('fetch')) {
+    throw new Error(`Erro de conectividade em ${context}. Verifique se o Supabase está configurado corretamente para aceitar requisições do localhost:5173`);
   }
   
   throw new Error(`${context}: ${error.message || 'Erro desconhecido'}`);
 }
 
-// Função otimizada para buscar vendas de clientes
-async function buscarVendasClientes(mes: number, ano: number): Promise<Lancamento[]> {
-  const cacheKey = `vendas-${mes}-${ano}`;
+// Função otimizada para buscar vendas de clientes FILTRADA POR EMPRESA
+async function buscarVendasClientes(mes: number, ano: number, empresaId?: string): Promise<Lancamento[]> {
+  const cacheKey = `vendas-${mes}-${ano}-${empresaId || 'all'}`;
   
   // Verifica cache primeiro
   const cached = vendasClientesCache.get(cacheKey);
@@ -65,7 +68,7 @@ async function buscarVendasClientes(mes: number, ano: number): Promise<Lancament
       ? `${ano + 1}-01-01`
       : `${ano}-${String(mes + 2).padStart(2, '0')}-01`;
 
-    const { data: vendas, error } = await supabase
+    let query = supabase
       .from('registro_de_vendas')
       .select(`
         id,
@@ -73,7 +76,14 @@ async function buscarVendasClientes(mes: number, ano: number): Promise<Lancament
         cliente:cliente_id(id, razao_social)
       `)
       .gte('data_venda', startDate)
-      .lt('data_venda', endDate)
+      .lt('data_venda', endDate);
+
+    // FILTRO CRÍTICO: Aplica filtro de empresa se fornecido
+    if (empresaId) {
+      query = query.eq('empresa_id', empresaId);
+    }
+
+    const { data: vendas, error } = await query
       .order('valor', { ascending: false })
       .limit(100); // Limita para performance
 
@@ -97,6 +107,7 @@ async function buscarVendasClientes(mes: number, ano: number): Promise<Lancament
       throw error;
     }
     console.error('Erro ao buscar vendas de clientes:', error);
+    // Retorna array vazio em caso de erro para não quebrar a aplicação
     return [];
   }
 }
@@ -137,18 +148,20 @@ async function buscarComposicaoIndicador(indicadorId: string): Promise<any[]> {
       throw error;
     }
     console.error('Erro ao buscar composição do indicador:', error);
+    // Retorna array vazio em caso de erro para não quebrar a aplicação
     return [];
   }
 }
 
-// Cache para lançamentos recursivos
+// Cache para lançamentos recursivos POR EMPRESA
 const recursiveCache = new Map<string, { data: Lancamento[]; timestamp: number }>();
 
-// Função recursiva otimizada para buscar lançamentos de um indicador e seus componentes
+// Função recursiva otimizada para buscar lançamentos de um indicador FILTRADA POR EMPRESA
 async function buscarLancamentosRecursivos(
   mes: number,
   ano: number,
   indicadorId: string,
+  empresaId?: string,
   visitados = new Set<string>()
 ): Promise<Lancamento[]> {
   try {
@@ -158,15 +171,15 @@ async function buscarLancamentosRecursivos(
     }
     visitados.add(indicadorId);
 
-    // Verifica cache recursivo
-    const cacheKey = `recursive-${mes}-${ano}-${indicadorId}`;
+    // Verifica cache recursivo COM EMPRESA
+    const cacheKey = `recursive-${mes}-${ano}-${indicadorId}-${empresaId || 'all'}`;
     const cached = recursiveCache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
       return cached.data;
     }
 
-    // Busca os lançamentos diretos do indicador
-    const { data: lancamentosDiretos, error: errorDiretos } = await supabase
+    // Busca os lançamentos diretos do indicador FILTRADOS POR EMPRESA
+    let queryDiretos = supabase
       .from('lancamentos')
       .select(`
         valor,
@@ -181,6 +194,13 @@ async function buscarLancamentosRecursivos(
       .eq('mes', mes + 1)
       .eq('ano', ano)
       .eq('indicador_id', indicadorId);
+
+    // FILTRO CRÍTICO: Aplica filtro de empresa
+    if (empresaId) {
+      queryDiretos = queryDiretos.eq('empresa_id', empresaId);
+    }
+
+    const { data: lancamentosDiretos, error: errorDiretos } = await queryDiretos;
 
     if (errorDiretos) {
       handleConnectionError(errorDiretos, 'Erro ao buscar lançamentos diretos');
@@ -201,14 +221,15 @@ async function buscarLancamentosRecursivos(
               mes,
               ano,
               componente.componente_indicador_id,
+              empresaId, // PASSA A EMPRESA PARA A RECURSÃO
               new Set(visitados) // Cria nova instância para evitar conflitos
             );
             lancamentos.push(...lancamentosIndicador);
           }
 
-          // Se tem categoria componente, busca os lançamentos
+          // Se tem categoria componente, busca os lançamentos FILTRADOS POR EMPRESA
           if (componente.componente_categoria_id) {
-            const { data: lancamentosCategoria, error: errorCategoria } = await supabase
+            let queryCategoria = supabase
               .from('lancamentos')
               .select(`
                 valor,
@@ -224,6 +245,13 @@ async function buscarLancamentosRecursivos(
               .eq('ano', ano)
               .eq('categoria_id', componente.componente_categoria_id);
 
+            // FILTRO CRÍTICO: Aplica filtro de empresa
+            if (empresaId) {
+              queryCategoria = queryCategoria.eq('empresa_id', empresaId);
+            }
+
+            const { data: lancamentosCategoria, error: errorCategoria } = await queryCategoria;
+
             if (errorCategoria) {
               handleConnectionError(errorCategoria, 'Erro ao buscar lançamentos da categoria');
             }
@@ -232,9 +260,11 @@ async function buscarLancamentosRecursivos(
           }
         } catch (error) {
           if (error instanceof Error && error.message.includes('Erro de conectividade')) {
+            // Re-propaga erros de conectividade para serem tratados no nível superior
             throw error;
           }
           console.error('Erro ao processar componente:', error);
+          // Continua com array vazio para este componente
         }
 
         return lancamentos;
@@ -253,6 +283,7 @@ async function buscarLancamentosRecursivos(
       throw error;
     }
     console.error('Erro na busca recursiva de lançamentos:', error);
+    // Retorna array vazio em caso de erro para não quebrar a aplicação
     return [];
   }
 }
@@ -260,18 +291,19 @@ async function buscarLancamentosRecursivos(
 export const getLancamentos = async (
   mes: number,
   ano: number,
-  filtros?: ComponenteFiltro
+  filtros?: ComponenteFiltro,
+  empresaId?: string // NOVO PARÂMETRO PARA FILTRAR POR EMPRESA
 ) => {
   try {
     if (!filtros) return [];
 
-    // Se a tabela_origem for registro_venda, busca as vendas dos clientes
+    // Se a tabela_origem for registro_venda, busca as vendas dos clientes FILTRADAS POR EMPRESA
     if (filtros.tabela_origem === 'registro_venda') {
-      return buscarVendasClientes(mes, ano);
+      return buscarVendasClientes(mes, ano, empresaId);
     }
 
-    // Cria uma chave única para o cache mais específica
-    const cacheKey = `${mes}-${ano}-${JSON.stringify(filtros)}`;
+    // Cria uma chave única para o cache COM EMPRESA
+    const cacheKey = `${mes}-${ano}-${JSON.stringify(filtros)}-${empresaId || 'all'}`;
     
     // Verifica o cache
     const cached = lancamentosCache.get(cacheKey);
@@ -282,10 +314,10 @@ export const getLancamentos = async (
     let lancamentos: Lancamento[] = [];
 
     if (filtros.indicador_id) {
-      // Se temos um indicador específico, usamos a busca recursiva otimizada
-      lancamentos = await buscarLancamentosRecursivos(mes, ano, filtros.indicador_id);
+      // Se temos um indicador específico, usamos a busca recursiva otimizada COM FILTRO DE EMPRESA
+      lancamentos = await buscarLancamentosRecursivos(mes, ano, filtros.indicador_id, empresaId);
     } else {
-      // Para outros casos, otimiza a consulta
+      // Para outros casos, otimiza a consulta COM FILTRO DE EMPRESA
       const ids = await buscarIdsDisponiveis(filtros);
       if (ids.length === 0) return [];
 
@@ -303,6 +335,11 @@ export const getLancamentos = async (
         `)
         .eq('mes', mes + 1)
         .eq('ano', ano);
+
+      // FILTRO CRÍTICO: Aplica filtro de empresa SEMPRE
+      if (empresaId) {
+        query = query.eq('empresa_id', empresaId);
+      }
 
       // Aplica filtros de forma otimizada
       if (filtros.todos !== true) {
@@ -350,6 +387,7 @@ export const getLancamentos = async (
       throw error;
     }
     console.error('Erro ao buscar lançamentos:', error);
+    // Retorna array vazio em caso de erro para não quebrar a aplicação
     return [];
   }
 };
