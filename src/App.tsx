@@ -6,6 +6,7 @@ import Profile from './pages/Profile';
 import Cadastros from './pages/Cadastros';
 import Home from './pages/Home';
 import Vendas from './pages/Vendas';
+import DespesasVendas from './pages/DespesasVendas';
 import Analise from './pages/Analise';
 import AnaliseVendas from './pages/AnaliseVendas';
 import Graficos from './pages/Graficos';
@@ -25,6 +26,7 @@ function App() {
               <Routes>
                 <Route index element={<Home />} />
                 <Route path="vendas" element={<Vendas />} />
+                <Route path="despesas-vendas" element={<DespesasVendas />} />
                 <Route path="analise" element={<Analise />} />
                 <Route path="analise-vendas" element={<AnaliseVendas />} />
                 <Route path="graficos" element={<Graficos />} />
@@ -39,6 +41,7 @@ function App() {
         }>
           <Route path="/" />
           <Route path="/vendas" />
+          <Route path="/despesas-vendas" />
           <Route path="/analise" />
           <Route path="/analise-vendas" />
           <Route path="/graficos" />
