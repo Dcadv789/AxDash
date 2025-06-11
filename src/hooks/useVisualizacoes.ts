@@ -24,6 +24,35 @@ const CACHE_DURATION = 2 * 60 * 1000; // 2 minutos
 const CONFIG_CACHE_DURATION = 10 * 60 * 1000; // 10 minutos para configurações
 const ANO_INICIAL_CACHE_DURATION = 30 * 60 * 1000; // 30 minutos para ano inicial (muda raramente)
 
+// Função melhorada para detectar e tratar erros de CORS
+function handleCorsError(error: any, context: string): never {
+  console.error(`${context}:`, error);
+  
+  // Detecta diferentes tipos de erros de conectividade/CORS
+  const isCorsError = 
+    error.message?.includes('Failed to fetch') || 
+    error.name === 'TypeError' || 
+    error.message?.includes('NetworkError') ||
+    error.message?.includes('fetch') ||
+    error.message?.includes('CORS') ||
+    error.code === 'NETWORK_ERROR' ||
+    error.status === 0;
+
+  if (isCorsError) {
+    throw new Error(`CORS_ERROR: Problema de conectividade detectado. 
+
+Para resolver este problema:
+1. Acesse o painel do Supabase (https://supabase.com/dashboard)
+2. Vá para Configurações do Projeto > API
+3. Na seção "CORS origins", adicione: http://localhost:5173
+4. Salve as alterações e recarregue a página
+
+Detalhes: ${error.message || 'Falha na comunicação com o servidor'}`);
+  }
+  
+  throw new Error(`${context}: ${error.message || 'Erro desconhecido'}`);
+}
+
 export const useVisualizacoes = (empresaId: string, mes: number, ano: number, pagina: string = 'home') => {
   const [visualizacoes, setVisualizacoes] = useState<Visualizacao[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,13 +102,7 @@ export const useVisualizacoes = (empresaId: string, mes: number, ano: number, pa
             .eq('empresa_id', empresaId);
 
           if (empresaError) {
-            if (empresaError.message?.includes('Failed to fetch') || 
-                empresaError.name === 'TypeError' || 
-                empresaError.message?.includes('NetworkError') ||
-                empresaError.message?.includes('fetch')) {
-              throw new Error('Erro de conectividade. Verifique se o Supabase está configurado corretamente para aceitar requisições do localhost:5173');
-            }
-            throw empresaError;
+            handleCorsError(empresaError, 'Erro ao buscar visualizações da empresa');
           }
 
           visualizacoesPermitidas = (empresaVisualizacoes || []).map(ev => ev.visualizacao_id);
@@ -116,13 +139,7 @@ export const useVisualizacoes = (empresaId: string, mes: number, ano: number, pa
             .order('ordem');
 
           if (error) {
-            if (error.message?.includes('Failed to fetch') || 
-                error.name === 'TypeError' || 
-                error.message?.includes('NetworkError') ||
-                error.message?.includes('fetch')) {
-              throw new Error('Erro de conectividade. Verifique se o Supabase está configurado corretamente para aceitar requisições do localhost:5173');
-            }
-            throw error;
+            handleCorsError(error, 'Erro ao buscar configurações de visualizações');
           }
 
           configVisualizacoes = data;
@@ -216,8 +233,8 @@ export const useVisualizacoes = (empresaId: string, mes: number, ano: number, pa
             } catch (componentError: any) {
               console.error(`Erro ao processar componente ${config.id}:`, componentError);
               
-              // Se for erro de conectividade, propaga para o nível superior
-              if (componentError.message?.includes('Erro de conectividade')) {
+              // Se for erro de CORS, propaga para o nível superior
+              if (componentError.message?.includes('CORS_ERROR')) {
                 throw componentError;
               }
               
@@ -248,11 +265,16 @@ export const useVisualizacoes = (empresaId: string, mes: number, ano: number, pa
       } catch (error: any) {
         console.error('Erro ao buscar visualizações:', error);
         
-        if (error.message?.includes('Erro de conectividade') || 
-            error.message?.includes('Failed to fetch') ||
-            error.message?.includes('NetworkError') ||
-            error.name === 'TypeError') {
-          setError('Erro de conectividade. Verifique se o Supabase está configurado corretamente para aceitar requisições do localhost:5173');
+        if (error.message?.includes('CORS_ERROR')) {
+          setError(`Problema de conectividade detectado. 
+
+Para resolver:
+1. Acesse o painel do Supabase (https://supabase.com/dashboard)
+2. Vá para Configurações do Projeto > API  
+3. Na seção "CORS origins", adicione: http://localhost:5173
+4. Salve as alterações e recarregue a página
+
+Detalhes: ${error.message.split('Detalhes: ')[1] || 'Falha na comunicação'}`);
         } else {
           setError(`Erro ao carregar visualizações: ${error.message || 'Erro desconhecido'}`);
         }
@@ -408,8 +430,8 @@ async function processarCardOtimizado(
   } catch (error: any) {
     console.error('Erro ao processar card:', error);
     
-    // Se for erro de conectividade, propaga
-    if (error.message?.includes('Erro de conectividade')) {
+    // Se for erro de CORS, propaga
+    if (error.message?.includes('CORS_ERROR')) {
       throw error;
     }
     
@@ -454,8 +476,8 @@ async function buscarLancamentosComCache(mes: number, ano: number, componentes: 
   } catch (error: any) {
     console.error('Erro ao buscar lançamentos com cache:', error);
     
-    // Se for erro de conectividade, propaga
-    if (error.message?.includes('Erro de conectividade')) {
+    // Se for erro de CORS, propaga
+    if (error.message?.includes('CORS_ERROR')) {
       throw error;
     }
     
@@ -479,8 +501,8 @@ async function processarListaOtimizada(componentes: any[], mes: number, ano: num
   } catch (error: any) {
     console.error('Erro ao processar lista:', error);
     
-    // Se for erro de conectividade, propaga
-    if (error.message?.includes('Erro de conectividade')) {
+    // Se for erro de CORS, propaga
+    if (error.message?.includes('CORS_ERROR')) {
       throw error;
     }
     
@@ -536,8 +558,8 @@ async function processarGraficoOtimizado(componentes: any[], mes: number, ano: n
         } catch (error: any) {
           console.error(`Erro ao processar dados do mês ${mesAtual}/${anoAtual}:`, error);
           
-          // Se for erro de conectividade, propaga
-          if (error.message?.includes('Erro de conectividade')) {
+          // Se for erro de CORS, propaga
+          if (error.message?.includes('CORS_ERROR')) {
             throw error;
           }
           
@@ -558,8 +580,8 @@ async function processarGraficoOtimizado(componentes: any[], mes: number, ano: n
   } catch (error: any) {
     console.error('Erro ao processar gráfico:', error);
     
-    // Se for erro de conectividade, propaga
-    if (error.message?.includes('Erro de conectividade')) {
+    // Se for erro de CORS, propaga
+    if (error.message?.includes('CORS_ERROR')) {
       throw error;
     }
     

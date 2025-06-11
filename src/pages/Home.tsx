@@ -2,6 +2,7 @@ import React from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { useFilter } from '../context/FilterContext';
 import GlobalFilter from '../components/common/GlobalFilter';
+import CorsErrorMessage from '../components/common/CorsErrorMessage';
 import DashboardCard from '../components/dashboard/DashboardCard';
 import DashboardList from '../components/dashboard/DashboardList';
 import DashboardChart from '../components/dashboard/DashboardChart';
@@ -85,22 +86,6 @@ const Home: React.FC = () => {
     </div>
   );
 
-  const renderErrorState = () => (
-    <div className="px-6 mb-4">
-      <div className={`p-4 rounded-lg border ${
-        isDark 
-          ? 'bg-red-900/20 border-red-800 text-red-300' 
-          : 'bg-red-50 border-red-200 text-red-700'
-      }`}>
-        <p className="font-medium">Erro de Conectividade</p>
-        <p className="text-sm mt-1">{error}</p>
-        <p className="text-xs mt-2 opacity-75">
-          Configure o Supabase para aceitar requisições de http://localhost:5173
-        </p>
-      </div>
-    </div>
-  );
-
   const renderLoadingCard = () => (
     <div className={`rounded-xl p-5 relative overflow-hidden transition-all duration-200 h-[140px] animate-pulse
       ${isDark ? 'bg-[#151515]' : 'bg-white'}`}>
@@ -156,7 +141,14 @@ const Home: React.FC = () => {
         <GlobalFilter />
       </div>
 
-      {error && renderErrorState()}
+      {error && (
+        <div className="px-6 mb-4">
+          <CorsErrorMessage 
+            error={error} 
+            onRetry={() => window.location.reload()} 
+          />
+        </div>
+      )}
 
       <div className="px-6 flex-1 flex flex-col gap-4 min-h-0 overflow-auto pb-6">
         {!selectedEmpresa ? (

@@ -38,15 +38,29 @@ const INDICADORES_CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
 // Cache para vendas de clientes POR EMPRESA
 const vendasClientesCache = new Map<string, { data: Lancamento[]; timestamp: number }>();
 
-// Função para tratar erros de conectividade
+// Função melhorada para detectar e tratar erros de conectividade/CORS
 function handleConnectionError(error: any, context: string): never {
   console.error(`${context}:`, error);
   
-  if (error.message?.includes('Failed to fetch') || 
-      error.name === 'TypeError' || 
-      error.message?.includes('NetworkError') ||
-      error.message?.includes('fetch')) {
-    throw new Error(`Erro de conectividade em ${context}. Verifique se o Supabase está configurado corretamente para aceitar requisições do localhost:5173`);
+  // Detecta diferentes tipos de erros de conectividade
+  const isConnectionError = 
+    error.message?.includes('Failed to fetch') || 
+    error.name === 'TypeError' || 
+    error.message?.includes('NetworkError') ||
+    error.message?.includes('fetch') ||
+    error.message?.includes('CORS') ||
+    error.code === 'NETWORK_ERROR' ||
+    error.status === 0;
+
+  if (isConnectionError) {
+    throw new Error(`CORS_ERROR: Erro de conectividade detectado. Para resolver este problema:
+
+1. Acesse o painel do Supabase (https://supabase.com/dashboard)
+2. Vá para Configurações do Projeto > API
+3. Na seção "CORS origins", adicione: http://localhost:5173
+4. Salve as alterações e recarregue a página
+
+Detalhes técnicos: ${error.message || 'Falha na comunicação com o servidor'}`);
   }
   
   throw new Error(`${context}: ${error.message || 'Erro desconhecido'}`);
@@ -103,7 +117,7 @@ async function buscarVendasClientes(mes: number, ano: number, empresaId?: string
     
     return result;
   } catch (error) {
-    if (error instanceof Error && error.message.includes('Erro de conectividade')) {
+    if (error instanceof Error && error.message.includes('CORS_ERROR')) {
       throw error;
     }
     console.error('Erro ao buscar vendas de clientes:', error);
@@ -144,7 +158,7 @@ async function buscarComposicaoIndicador(indicadorId: string): Promise<any[]> {
 
     return componentes;
   } catch (error) {
-    if (error instanceof Error && error.message.includes('Erro de conectividade')) {
+    if (error instanceof Error && error.message.includes('CORS_ERROR')) {
       throw error;
     }
     console.error('Erro ao buscar composição do indicador:', error);
@@ -259,8 +273,8 @@ async function buscarLancamentosRecursivos(
             lancamentos.push(...(lancamentosCategoria || []));
           }
         } catch (error) {
-          if (error instanceof Error && error.message.includes('Erro de conectividade')) {
-            // Re-propaga erros de conectividade para serem tratados no nível superior
+          if (error instanceof Error && error.message.includes('CORS_ERROR')) {
+            // Re-propaga erros de CORS para serem tratados no nível superior
             throw error;
           }
           console.error('Erro ao processar componente:', error);
@@ -279,7 +293,7 @@ async function buscarLancamentosRecursivos(
     
     return result;
   } catch (error) {
-    if (error instanceof Error && error.message.includes('Erro de conectividade')) {
+    if (error instanceof Error && error.message.includes('CORS_ERROR')) {
       throw error;
     }
     console.error('Erro na busca recursiva de lançamentos:', error);
@@ -383,7 +397,7 @@ export const getLancamentos = async (
 
     return lancamentos;
   } catch (error) {
-    if (error instanceof Error && error.message.includes('Erro de conectividade')) {
+    if (error instanceof Error && error.message.includes('CORS_ERROR')) {
       throw error;
     }
     console.error('Erro ao buscar lançamentos:', error);
