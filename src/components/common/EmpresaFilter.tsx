@@ -102,8 +102,8 @@ const EmpresaFilter: React.FC<EmpresaFilterProps> = ({ value, onChange, classNam
   }
 
   return (
-    <div className={`relative min-w-[240px] max-w-[320px] w-auto ${className}`}>
-      <div className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200
+    <div className={`relative min-w-[180px] max-w-[280px] w-auto ${className}`}>
+      <div className={`flex items-center gap-3 px-3 py-2 h-[36px] rounded-lg transition-all duration-200
         ${isDark 
           ? 'bg-gray-800 hover:bg-gray-700' 
           : 'bg-gray-100 hover:bg-gray-200'}`}>
@@ -117,7 +117,7 @@ const EmpresaFilter: React.FC<EmpresaFilterProps> = ({ value, onChange, classNam
             <select
               value={value}
               onChange={(e) => onChange(e.target.value)}
-              className={`w-full bg-transparent border-none focus:ring-0 text-sm font-medium appearance-none cursor-pointer pl-1 pr-8
+              className={`w-full bg-transparent border-none focus:ring-0 text-sm font-medium appearance-none cursor-pointer pr-6
                 ${isDark ? 'text-gray-200' : 'text-gray-700'}
                 [&>option]:px-4 [&>option]:py-2
                 [&>option]:bg-white [&>option]:dark:bg-gray-800
@@ -132,7 +132,7 @@ const EmpresaFilter: React.FC<EmpresaFilterProps> = ({ value, onChange, classNam
                 </option>
               ))}
             </select>
-            <ChevronDown className={`h-4 w-4 absolute right-4 pointer-events-none flex-shrink-0 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+            <ChevronDown className={`h-4 w-4 absolute right-3 pointer-events-none flex-shrink-0 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
           </>
         )}
       </div>

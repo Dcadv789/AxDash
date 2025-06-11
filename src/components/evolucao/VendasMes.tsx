@@ -9,15 +9,19 @@ interface Venda {
   vendedor: {
     nome: string;
   };
+  sdr?: {
+    nome: string;
+  };
   valor: number;
 }
 
 interface VendasMesProps {
   vendas: Venda[];
   loading: boolean;
+  showSDR?: boolean; // Nova prop para controlar se mostra coluna SDR
 }
 
-const VendasMes: React.FC<VendasMesProps> = ({ vendas, loading }) => {
+const VendasMes: React.FC<VendasMesProps> = ({ vendas, loading, showSDR = false }) => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
@@ -70,6 +74,12 @@ const VendasMes: React.FC<VendasMesProps> = ({ vendas, loading }) => {
                 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                 Vendedor
               </th>
+              {showSDR && (
+                <th className={`px-4 py-3 text-left text-xs font-medium tracking-wider
+                  ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  SDR
+                </th>
+              )}
               <th className={`px-4 py-3 text-right text-xs font-medium tracking-wider
                 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                 Valor
@@ -77,22 +87,38 @@ const VendasMes: React.FC<VendasMesProps> = ({ vendas, loading }) => {
             </tr>
           </thead>
           <tbody className={`divide-y ${isDark ? 'divide-gray-700' : 'divide-gray-200'}`}>
-            {vendas.map((venda, index) => (
-              <tr key={venda.id} className={isDark ? 'hover:bg-gray-800/30' : 'hover:bg-gray-50'}>
-                <td className={`px-4 py-3 text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                  {index + 1}
-                </td>
-                <td className={`px-4 py-3 text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  {venda.cliente?.razao_social || '-'}
-                </td>
-                <td className={`px-4 py-3 text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                  {venda.vendedor?.nome || '-'}
-                </td>
-                <td className={`px-4 py-3 text-sm text-right font-medium ${isDark ? 'text-green-400' : 'text-green-600'}`}>
-                  {formatCurrency(venda.valor)}
+            {vendas.length === 0 ? (
+              <tr>
+                <td 
+                  colSpan={showSDR ? 5 : 4} 
+                  className={`px-4 py-8 text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}
+                >
+                  Nenhuma venda encontrada para este período
                 </td>
               </tr>
-            ))}
+            ) : (
+              vendas.map((venda, index) => (
+                <tr key={venda.id} className={isDark ? 'hover:bg-gray-800/30' : 'hover:bg-gray-50'}>
+                  <td className={`px-4 py-3 text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                    {index + 1}
+                  </td>
+                  <td className={`px-4 py-3 text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    {venda.cliente?.razao_social || '-'}
+                  </td>
+                  <td className={`px-4 py-3 text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                    {venda.vendedor?.nome || '-'}
+                  </td>
+                  {showSDR && (
+                    <td className={`px-4 py-3 text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                      {venda.sdr?.nome || '-'}
+                    </td>
+                  )}
+                  <td className={`px-4 py-3 text-sm text-right font-medium ${isDark ? 'text-green-400' : 'text-green-600'}`}>
+                    {formatCurrency(venda.valor)}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

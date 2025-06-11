@@ -38,7 +38,7 @@ interface VendedorVendas {
 
 // Cache para armazenar os resultados
 const analiseVendasCache = new Map<string, { data: any; timestamp: number }>();
-const pessoasCache = new Map<string, { vendedores: Pessoa[]; sdrs: Pessoa[]; timestamp: number }>();
+const pessoasEmpresaCache = new Map<string, { vendedores: Pessoa[]; sdrs: Pessoa[]; timestamp: number }>();
 const CACHE_DURATION = 3 * 60 * 1000; // 3 minutos
 
 const AnaliseVendas: React.FC = () => {
@@ -86,9 +86,88 @@ const AnaliseVendas: React.FC = () => {
     }
   };
 
+  // Busca vendedores e SDRs da empresa selecionada
   useEffect(() => {
-    fetchPessoas();
-  }, []);
+    const fetchPessoasEmpresa = async () => {
+      if (!selectedEmpresa) {
+        setVendedores([]);
+        setSDRs([]);
+        setSelectedVendedor('');
+        setSelectedSDR('');
+        setLoadingPessoas(false);
+        return;
+      }
+
+      try {
+        setLoadingPessoas(true);
+        setError(null);
+
+        // Verifica o cache por empresa
+        const cacheKey = `pessoas-empresa-${selectedEmpresa}`;
+        const cached = pessoasEmpresaCache.get(cacheKey);
+        if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+          setVendedores(cached.vendedores);
+          setSDRs(cached.sdrs);
+          setLoadingPessoas(false);
+          return;
+        }
+
+        console.log('Iniciando busca de pessoas da empresa:', selectedEmpresa);
+        const startTime = Date.now();
+
+        // Busca vendedores e SDRs da empresa específica em paralelo
+        const [vendedoresResult, sdrsResult] = await Promise.all([
+          supabase
+            .from('pessoas')
+            .select('id, nome, cargo')
+            .eq('empresa_id', selectedEmpresa)
+            .or('cargo.eq.Vendedor,cargo.eq.Ambos')
+            .order('nome'),
+          supabase
+            .from('pessoas')
+            .select('id, nome, cargo')
+            .eq('empresa_id', selectedEmpresa)
+            .or('cargo.eq.SDR,cargo.eq.Ambos')
+            .order('nome')
+        ]);
+
+        if (vendedoresResult.error) {
+          handleConnectionError(vendedoresResult.error, 'Erro ao buscar vendedores da empresa');
+          return;
+        }
+
+        if (sdrsResult.error) {
+          handleConnectionError(sdrsResult.error, 'Erro ao buscar SDRs da empresa');
+          return;
+        }
+
+        console.log(`Pessoas da empresa carregadas em ${Date.now() - startTime}ms`);
+
+        const vendedoresData = vendedoresResult.data || [];
+        const sdrsData = sdrsResult.data || [];
+
+        // Atualiza o cache por empresa
+        pessoasEmpresaCache.set(cacheKey, {
+          vendedores: vendedoresData,
+          sdrs: sdrsData,
+          timestamp: Date.now()
+        });
+
+        setVendedores(vendedoresData);
+        setSDRs(sdrsData);
+
+        // Limpa seleções quando muda a empresa
+        setSelectedVendedor('');
+        setSelectedSDR('');
+      } catch (error: any) {
+        handleConnectionError(error, 'Erro ao buscar pessoas da empresa');
+      } finally {
+        setLoadingPessoas(false);
+      }
+    };
+
+    fetchPessoasEmpresa();
+  }, [selectedEmpresa]);
 
   useEffect(() => {
     if (!selectedEmpresa) {
@@ -114,74 +193,12 @@ const AnaliseVendas: React.FC = () => {
     fetchAllVendasData();
   }, [selectedVendedor, selectedSDR, selectedMonth, selectedYear, selectedEmpresa]);
 
-  const fetchPessoas = async () => {
-    try {
-      setLoadingPessoas(true);
-      setError(null);
-
-      // Verifica o cache
-      const cached = pessoasCache.get('pessoas-data');
-      if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-        setVendedores(cached.vendedores);
-        setSDRs(cached.sdrs);
-        setLoadingPessoas(false);
-        return;
-      }
-
-      console.log('Iniciando busca de pessoas...');
-      const startTime = Date.now();
-
-      // Busca vendedores e SDRs em paralelo
-      const [vendedoresResult, sdrsResult] = await Promise.all([
-        supabase
-          .from('pessoas')
-          .select('id, nome')
-          .or('cargo.eq.Vendedor,cargo.eq.Ambos')
-          .order('nome'),
-        supabase
-          .from('pessoas')
-          .select('id, nome')
-          .or('cargo.eq.SDR,cargo.eq.Ambos')
-          .order('nome')
-      ]);
-
-      if (vendedoresResult.error) {
-        handleConnectionError(vendedoresResult.error, 'Erro ao buscar vendedores');
-        return;
-      }
-
-      if (sdrsResult.error) {
-        handleConnectionError(sdrsResult.error, 'Erro ao buscar SDRs');
-        return;
-      }
-
-      console.log(`Pessoas carregadas em ${Date.now() - startTime}ms`);
-
-      const vendedoresData = vendedoresResult.data || [];
-      const sdrsData = sdrsResult.data || [];
-
-      // Atualiza o cache
-      pessoasCache.set('pessoas-data', {
-        vendedores: vendedoresData,
-        sdrs: sdrsData,
-        timestamp: Date.now()
-      });
-
-      setVendedores(vendedoresData);
-      setSDRs(sdrsData);
-    } catch (error: any) {
-      handleConnectionError(error, 'Erro ao buscar pessoas');
-    } finally {
-      setLoadingPessoas(false);
-    }
-  };
-
   const fetchAllVendasData = async () => {
     setLoading(true);
     setError(null);
 
     try {
-      // Cria uma chave única para o cache
+      // Cria uma chave única para o cache incluindo a empresa
       const cacheKey = `${selectedEmpresa}-${selectedMonth}-${selectedYear}-${selectedVendedor}-${selectedSDR}`;
       
       // Verifica o cache
@@ -196,7 +213,7 @@ const AnaliseVendas: React.FC = () => {
         return;
       }
 
-      console.log('Iniciando busca completa de dados de vendas...');
+      console.log('Iniciando busca completa de dados de vendas para empresa:', selectedEmpresa);
       const startTime = Date.now();
 
       // Calcula datas
@@ -210,7 +227,7 @@ const AnaliseVendas: React.FC = () => {
       const startDateAnterior = `${anoAnterior}-${String(mesAnterior + 1).padStart(2, '0')}-01`;
       const endDateAnterior = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-01`;
 
-      // Prepara queries base
+      // Prepara queries base COM FILTRO DE EMPRESA OBRIGATÓRIO
       const createQuery = (startDate: string, endDate: string, includeDetails = false) => {
         let query = supabase
           .from('registro_de_vendas')
@@ -221,6 +238,7 @@ const AnaliseVendas: React.FC = () => {
             servico:servico_id(nome),
             cliente:cliente_id(razao_social)
           ` : 'id, valor, data_venda, vendedor_id, origem')
+          .eq('empresa_id', selectedEmpresa) // FILTRO OBRIGATÓRIO POR EMPRESA
           .gte('data_venda', startDate)
           .lt('data_venda', endDate);
 
@@ -238,7 +256,7 @@ const AnaliseVendas: React.FC = () => {
         return query;
       };
 
-      // Prepara queries para vendas por vendedor (últimos 13 meses)
+      // Prepara queries para vendas por vendedor (últimos 13 meses) COM FILTRO DE EMPRESA
       const vendasPorVendedorQueries = [];
       for (let i = 0; i < 13; i++) {
         let mes = selectedMonth - i;
@@ -290,7 +308,7 @@ const AnaliseVendas: React.FC = () => {
         return;
       }
 
-      console.log(`Dados carregados em ${Date.now() - startTime}ms`);
+      console.log(`Dados carregados em ${Date.now() - startTime}ms para empresa ${selectedEmpresa}`);
 
       // Processa dados principais
       const vendas = vendasAtuaisResult.data || [];
@@ -376,7 +394,7 @@ const AnaliseVendas: React.FC = () => {
         value
       }));
 
-      console.log(`Dados processados em ${Date.now() - startTime}ms`);
+      console.log(`Dados processados em ${Date.now() - startTime}ms para empresa ${selectedEmpresa}`);
 
       // Atualiza o cache
       const cacheData = {
@@ -484,7 +502,14 @@ const AnaliseVendas: React.FC = () => {
         </div>
 
         <div className={`flex items-center gap-4 ${isDark ? 'bg-[#151515]' : 'bg-white'} py-2 px-4 rounded-xl`}>
-          {loadingPessoas ? (
+          {!selectedEmpresa ? (
+            <div className="flex items-center gap-2">
+              <Building className={`h-4 w-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`} />
+              <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                Selecione uma empresa primeiro
+              </span>
+            </div>
+          ) : loadingPessoas ? (
             <div className="flex items-center gap-2">
               <Loader2 className={`h-4 w-4 animate-spin ${isDark ? 'text-gray-400' : 'text-gray-600'}`} />
               <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>

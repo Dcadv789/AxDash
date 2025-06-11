@@ -17,8 +17,12 @@ interface Visualizacao {
 // Cache global mais agressivo
 const visualizacoesCache = new Map<string, { data: Visualizacao[]; timestamp: number }>();
 const configCache = new Map<string, { data: any[]; timestamp: number }>();
+const empresaVisualizacoesCache = new Map<string, { data: string[]; timestamp: number }>();
+// NOVO: Cache para anos iniciais por empresa
+const anoInicialCache = new Map<string, { anoInicial: number; timestamp: number }>();
 const CACHE_DURATION = 2 * 60 * 1000; // 2 minutos
 const CONFIG_CACHE_DURATION = 10 * 60 * 1000; // 10 minutos para configurações
+const ANO_INICIAL_CACHE_DURATION = 30 * 60 * 1000; // 30 minutos para ano inicial (muda raramente)
 
 export const useVisualizacoes = (empresaId: string, mes: number, ano: number, pagina: string = 'home') => {
   const [visualizacoes, setVisualizacoes] = useState<Visualizacao[]>([]);
@@ -54,6 +58,37 @@ export const useVisualizacoes = (empresaId: string, mes: number, ano: number, pa
 
         console.log('🚀 Iniciando busca otimizada de visualizações COM FILTRO DE EMPRESA...');
         const startTime = Date.now();
+
+        // NOVO: Busca quais visualizações estão permitidas para esta empresa
+        let visualizacoesPermitidas: string[] = [];
+        const empresaVisualizacoesCached = empresaVisualizacoesCache.get(empresaId);
+        
+        if (empresaVisualizacoesCached && Date.now() - empresaVisualizacoesCached.timestamp < CONFIG_CACHE_DURATION) {
+          visualizacoesPermitidas = empresaVisualizacoesCached.data;
+          console.log('📋 Visualizações da empresa carregadas do cache');
+        } else {
+          const { data: empresaVisualizacoes, error: empresaError } = await supabase
+            .from('config_visualizacoes_empresas')
+            .select('visualizacao_id')
+            .eq('empresa_id', empresaId);
+
+          if (empresaError) {
+            if (empresaError.message?.includes('Failed to fetch') || 
+                empresaError.name === 'TypeError' || 
+                empresaError.message?.includes('NetworkError') ||
+                empresaError.message?.includes('fetch')) {
+              throw new Error('Erro de conectividade. Verifique se o Supabase está configurado corretamente para aceitar requisições do localhost:5173');
+            }
+            throw empresaError;
+          }
+
+          visualizacoesPermitidas = (empresaVisualizacoes || []).map(ev => ev.visualizacao_id);
+          empresaVisualizacoesCache.set(empresaId, { 
+            data: visualizacoesPermitidas, 
+            timestamp: Date.now() 
+          });
+          console.log('📋 Visualizações da empresa carregadas do servidor');
+        }
 
         // Busca configurações com cache separado
         let configVisualizacoes;
@@ -95,11 +130,17 @@ export const useVisualizacoes = (empresaId: string, mes: number, ano: number, pa
           console.log('📋 Configurações carregadas do servidor');
         }
 
+        // FILTRO CRÍTICO: Filtra apenas as visualizações permitidas para esta empresa
+        const configVisualizacoesFiltradas = configVisualizacoes.filter(config => 
+          visualizacoesPermitidas.includes(config.id)
+        );
+
+        console.log(`⚡ Configurações filtradas por empresa: ${configVisualizacoesFiltradas.length}/${configVisualizacoes.length} widgets`);
         console.log(`⚡ Configurações prontas em ${Date.now() - startTime}ms`);
 
         // Processa as visualizações com otimizações agressivas E FILTRO DE EMPRESA
         const visualizacoesProcessadas = await Promise.all(
-          configVisualizacoes.map(async (config) => {
+          configVisualizacoesFiltradas.map(async (config) => {
             const visualizacao: Visualizacao = {
               id: config.id,
               nome_exibicao: config.nome_exibicao,
@@ -132,7 +173,7 @@ export const useVisualizacoes = (empresaId: string, mes: number, ano: number, pa
                   } 
                   // Tratamento especial para ordens 6 e 7 na página de vendas
                   else if (pagina === 'vendas' && (config.ordem === 6 || config.ordem === 7)) {
-                    const widgetOrdem1 = configVisualizacoes.find(v => v.ordem === 1);
+                    const widgetOrdem1 = configVisualizacoesFiltradas.find(v => v.ordem === 1);
                     if (widgetOrdem1) {
                       const { valorAtual: valorBase } = await processarCardOtimizado(
                         widgetOrdem1.componentes, 
@@ -229,6 +270,45 @@ export const useVisualizacoes = (empresaId: string, mes: number, ano: number, pa
 // Cache para lançamentos por período COM EMPRESA
 const lancamentosCache = new Map<string, { data: any[]; timestamp: number }>();
 
+// NOVA FUNÇÃO: Busca o ano inicial de forma otimizada e com cache
+async function buscarAnoInicialEmpresa(empresaId: string): Promise<number> {
+  // Verifica cache primeiro
+  const cached = anoInicialCache.get(empresaId);
+  if (cached && Date.now() - cached.timestamp < ANO_INICIAL_CACHE_DURATION) {
+    console.log(`📅 Ano inicial da empresa ${empresaId} carregado do cache: ${cached.anoInicial}`);
+    return cached.anoInicial;
+  }
+
+  try {
+    // Busca apenas o ano mínimo de forma super otimizada
+    const { data, error } = await supabase
+      .from('lancamentos')
+      .select('ano')
+      .eq('empresa_id', empresaId)
+      .order('ano', { ascending: true })
+      .limit(1);
+
+    if (error) {
+      console.error('Erro ao buscar ano inicial:', error);
+      return 2024; // Fallback
+    }
+
+    const anoInicial = data && data.length > 0 ? data[0].ano : 2024;
+    
+    // Atualiza cache com duração longa (30 minutos)
+    anoInicialCache.set(empresaId, {
+      anoInicial,
+      timestamp: Date.now()
+    });
+
+    console.log(`📅 Ano inicial da empresa ${empresaId} determinado: ${anoInicial}`);
+    return anoInicial;
+  } catch (error) {
+    console.error('Erro ao buscar ano inicial:', error);
+    return 2024; // Fallback seguro
+  }
+}
+
 // Função otimizada para processar cards COM FILTRO DE EMPRESA
 async function processarCardOtimizado(
   componentes: any[], 
@@ -242,56 +322,75 @@ async function processarCardOtimizado(
   let valorAnterior = 0;
 
   try {
-    // Se a ordem for 5, calcula o saldo acumulado (mantém lógica original)
+    // OTIMIZAÇÃO CRÍTICA: Se a ordem for 5, calcula o saldo acumulado de forma super otimizada
     if (ordem === 5) {
-      for (let anoAtual = 2024; anoAtual <= ano; anoAtual++) {
-        const mesInicial = anoAtual === 2024 ? 0 : 0;
-        const mesFinal = anoAtual === ano ? mes : 11;
+      console.log('💰 Calculando saldo acumulado otimizado...');
+      
+      // Busca o ano inicial de forma otimizada (com cache de 30 minutos)
+      const anoInicial = await buscarAnoInicialEmpresa(empresaId);
+      
+      console.log(`📅 Calculando desde ${anoInicial} até ${mes + 1}/${ano} (OTIMIZADO)`);
 
-        for (let mesAtual = mesInicial; mesAtual <= mesFinal; mesAtual++) {
-          const lancamentosMes = await Promise.all(
-            componentes.map(componente =>
-              getLancamentos(mesAtual, anoAtual, {
-                categoria_id: componente.categoria?.id,
-                indicador_id: componente.indicador?.id,
-                tabela_origem: componente.tabela_origem,
-                todos: componente.todos,
-              }, empresaId) // PASSA A EMPRESA
-            )
-          );
-
-          valorAtual += lancamentosMes.flat().reduce((acc, lanc) => 
-            acc + (lanc.tipo === 'Receita' ? lanc.valor : -lanc.valor), 
-            0
-          );
-        }
-      }
-
-      // Para o valor anterior, calculamos até o mês anterior
-      if (mes > 0) {
-        for (let anoAtual = 2024; anoAtual <= ano; anoAtual++) {
-          const mesInicial = anoAtual === 2024 ? 0 : 0;
-          const mesFinal = anoAtual === ano ? mes - 1 : 11;
-
-          for (let mesAtual = mesInicial; mesAtual <= mesFinal; mesAtual++) {
-            const lancamentosMes = await Promise.all(
-              componentes.map(componente =>
-                getLancamentos(mesAtual, anoAtual, {
-                  categoria_id: componente.categoria?.id,
-                  indicador_id: componente.indicador?.id,
-                  tabela_origem: componente.tabela_origem,
-                  todos: componente.todos,
-                }, empresaId) // PASSA A EMPRESA
+      // SUPER OTIMIZAÇÃO: Calcula em paralelo para reduzir tempo
+      const calcularPeriodo = async (anoFinal: number, mesFinal: number) => {
+        let total = 0;
+        
+        // Calcula todos os anos/meses em paralelo
+        const promessasPorAno = [];
+        
+        for (let anoAtual = anoInicial; anoAtual <= anoFinal; anoAtual++) {
+          const mesInicial = 0; // Sempre começa em janeiro
+          const mesLimite = anoAtual === anoFinal ? mesFinal : 11;
+          
+          // Para cada ano, calcula todos os meses em paralelo
+          const promessasMeses = [];
+          for (let mesAtual = mesInicial; mesAtual <= mesLimite; mesAtual++) {
+            promessasMeses.push(
+              Promise.all(
+                componentes.map(componente =>
+                  getLancamentos(mesAtual, anoAtual, {
+                    categoria_id: componente.categoria?.id,
+                    indicador_id: componente.indicador?.id,
+                    tabela_origem: componente.tabela_origem,
+                    todos: componente.todos,
+                  }, empresaId)
+                )
+              ).then(lancamentosMes => 
+                lancamentosMes.flat().reduce((acc, lanc) => 
+                  acc + (lanc.tipo === 'Receita' ? lanc.valor : -lanc.valor), 
+                  0
+                )
               )
             );
-
-            valorAnterior += lancamentosMes.flat().reduce((acc, lanc) => 
-              acc + (lanc.tipo === 'Receita' ? lanc.valor : -lanc.valor), 
-              0
-            );
           }
+          
+          promessasPorAno.push(Promise.all(promessasMeses));
         }
-      }
+        
+        // Aguarda todos os anos em paralelo
+        const resultadosPorAno = await Promise.all(promessasPorAno);
+        
+        // Soma todos os resultados
+        for (const resultadosAno of resultadosPorAno) {
+          total += resultadosAno.reduce((acc, valor) => acc + valor, 0);
+        }
+        
+        return total;
+      };
+
+      // Calcula valor atual e anterior em paralelo
+      const mesAnterior = mes === 0 ? 11 : mes - 1;
+      const anoAnterior = mes === 0 ? ano - 1 : ano;
+
+      const [valorAtualCalculado, valorAnteriorCalculado] = await Promise.all([
+        calcularPeriodo(ano, mes),
+        calcularPeriodo(anoAnterior, mesAnterior)
+      ]);
+
+      valorAtual = valorAtualCalculado;
+      valorAnterior = valorAnteriorCalculado;
+
+      console.log(`💰 Saldo acumulado OTIMIZADO calculado em paralelo: Atual=${valorAtual.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}, Anterior=${valorAnterior.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`);
     } else {
       // Para outras ordens, usa cache agressivo COM FILTRO DE EMPRESA
       const mesAnterior = mes === 0 ? 11 : mes - 1;

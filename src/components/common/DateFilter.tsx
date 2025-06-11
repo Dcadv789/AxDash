@@ -29,14 +29,14 @@ const DateFilter: React.FC<DateFilterProps> = ({
   const years = Array.from({ length: 6 }, (_, i) => currentYear - 5 + i);
 
   const selectClasses = `w-full h-full absolute inset-0 opacity-0 cursor-pointer z-10`;
-  const containerClasses = `relative min-w-[160px] h-[42px] rounded-lg transition-all duration-200
+  const containerClasses = `relative min-w-[120px] h-[36px] rounded-lg transition-all duration-200
     ${isDark ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-100 hover:bg-gray-200'}`;
-  const contentClasses = `absolute inset-0 flex items-center px-4 pointer-events-none
+  const contentClasses = `absolute inset-0 flex items-center px-3 pointer-events-none
     ${isDark ? 'text-gray-200' : 'text-gray-700'}`;
 
   return (
     <div className="flex items-center gap-3">
-      <div className={containerClasses}>
+      <div className={containerClasses.replace('min-w-[120px]', 'min-w-[140px]')}>
         <select
           value={selectedMonth}
           onChange={(e) => onMonthChange(Number(e.target.value))}
@@ -54,7 +54,7 @@ const DateFilter: React.FC<DateFilterProps> = ({
         </div>
       </div>
 
-      <div className={containerClasses.replace('min-w-[160px]', 'min-w-[120px]')}>
+      <div className={containerClasses.replace('min-w-[120px]', 'min-w-[100px]')}>
         <select
           value={selectedYear}
           onChange={(e) => onYearChange(Number(e.target.value))}

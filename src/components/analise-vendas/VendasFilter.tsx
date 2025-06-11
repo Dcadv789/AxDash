@@ -85,14 +85,14 @@ const VendasFilter: React.FC<VendasFilterProps> = ({
     }
   };
 
-  const buttonClasses = `relative min-w-[160px] h-[42px] rounded-lg transition-all duration-200
+  const buttonClasses = `relative min-w-[140px] h-[36px] rounded-lg transition-all duration-200 flex items-center px-3
     ${isDark ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-100 hover:bg-gray-200'}`;
 
-  const contentClasses = `absolute inset-0 flex items-center px-4 pointer-events-none
+  const contentClasses = `flex items-center justify-between w-full
     ${isDark ? 'text-gray-200' : 'text-gray-700'}`;
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-3">
       {/* Vendedores Dropdown */}
       <div className="relative vendedores-dropdown">
         <button
@@ -103,11 +103,11 @@ const VendasFilter: React.FC<VendasFilterProps> = ({
           className={buttonClasses}
         >
           <div className={contentClasses}>
-            <span className="flex-1 text-sm font-medium truncate">
+            <span className="text-sm font-medium truncate">
               {selectedVendedores.size === 0
                 ? 'Vendedores'
                 : selectedVendedores.size === vendedores.length
-                  ? 'Todos os vendedores'
+                  ? 'Todos vendedores'
                   : `${selectedVendedores.size} vendedor${selectedVendedores.size !== 1 ? 'es' : ''}`}
             </span>
             <ChevronDown className="h-4 w-4 flex-shrink-0 ml-2" />
@@ -115,7 +115,7 @@ const VendasFilter: React.FC<VendasFilterProps> = ({
         </button>
 
         {vendedoresMenuOpen && (
-          <div className={`absolute z-50 mt-1 w-full rounded-lg shadow-lg border ${
+          <div className={`absolute z-50 mt-1 w-full min-w-[200px] rounded-lg shadow-lg border ${
             isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
           }`}>
             <div className="p-2">
@@ -192,11 +192,11 @@ const VendasFilter: React.FC<VendasFilterProps> = ({
           className={buttonClasses}
         >
           <div className={contentClasses}>
-            <span className="flex-1 text-sm font-medium truncate">
+            <span className="text-sm font-medium truncate">
               {selectedSDRs.size === 0
                 ? 'SDRs'
                 : selectedSDRs.size === sdrs.length
-                  ? 'Todos os SDRs'
+                  ? 'Todos SDRs'
                   : `${selectedSDRs.size} SDR${selectedSDRs.size !== 1 ? 's' : ''}`}
             </span>
             <ChevronDown className="h-4 w-4 flex-shrink-0 ml-2" />
@@ -204,7 +204,7 @@ const VendasFilter: React.FC<VendasFilterProps> = ({
         </button>
 
         {sdrsMenuOpen && (
-          <div className={`absolute z-50 mt-1 w-full rounded-lg shadow-lg border ${
+          <div className={`absolute z-50 mt-1 w-full min-w-[200px] rounded-lg shadow-lg border ${
             isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
           }`}>
             <div className="p-2">

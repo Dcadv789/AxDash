@@ -22,10 +22,13 @@ interface Venda {
   vendedor: {
     nome: string;
   };
+  sdr?: {
+    nome: string;
+  };
   valor: number;
 }
 
-// Cache para armazenar os resultados
+// Cache para armazenar os resultados POR EMPRESA
 const evolucaoCache = new Map<string, { data: { categorias: Categoria[]; vendas: Venda[] }; timestamp: number }>();
 const CACHE_DURATION = 3 * 60 * 1000; // 3 minutos
 
@@ -37,11 +40,13 @@ const Evolucao: React.FC = () => {
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [vendas, setVendas] = useState<Venda[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [empresaInfo, setEmpresaInfo] = useState<{ razao_social: string } | null>(null);
 
   useEffect(() => {
     if (!selectedEmpresa) {
       setCategorias([]);
       setVendas([]);
+      setEmpresaInfo(null);
       setLoading(false);
       setError(null);
       return;
@@ -52,7 +57,7 @@ const Evolucao: React.FC = () => {
       setError(null);
       
       try {
-        // Cria uma chave única para o cache
+        // Cria uma chave única para o cache COM EMPRESA
         const cacheKey = `${selectedEmpresa}-${selectedMonth}-${selectedYear}`;
         
         // Verifica o cache
@@ -64,7 +69,7 @@ const Evolucao: React.FC = () => {
           return;
         }
 
-        console.log('Iniciando busca de dados Evolução...');
+        console.log('Iniciando busca de dados Evolução para empresa:', selectedEmpresa);
         const startTime = Date.now();
 
         // Calcula o mês anterior
@@ -75,13 +80,22 @@ const Evolucao: React.FC = () => {
         const startDate = new Date(selectedYear, selectedMonth, 1);
         const endDate = new Date(selectedYear, selectedMonth + 1, 0);
 
-        // Executa todas as consultas em paralelo
+        // Busca informações da empresa para verificar se é Mentorfy
+        const empresaInfoPromise = supabase
+          .from('empresas')
+          .select('razao_social')
+          .eq('id', selectedEmpresa)
+          .single();
+
+        // Executa todas as consultas em paralelo COM FILTRO DE EMPRESA
         const [
+          empresaInfoResult,
           lancamentosAtuaisResult,
           lancamentosAnterioresResult,
           vendasMesResult
         ] = await Promise.all([
-          // Lançamentos do mês atual
+          empresaInfoPromise,
+          // Lançamentos do mês atual FILTRADOS POR EMPRESA
           supabase
             .from('lancamentos')
             .select(`
@@ -91,10 +105,11 @@ const Evolucao: React.FC = () => {
             `)
             .eq('mes', selectedMonth + 1)
             .eq('ano', selectedYear)
+            .eq('empresa_id', selectedEmpresa) // FILTRO CRÍTICO POR EMPRESA
             .eq('tipo', 'Despesa')
             .not('categoria_id', 'is', null),
 
-          // Lançamentos do mês anterior
+          // Lançamentos do mês anterior FILTRADOS POR EMPRESA
           supabase
             .from('lancamentos')
             .select(`
@@ -104,23 +119,29 @@ const Evolucao: React.FC = () => {
             `)
             .eq('mes', mesAnterior + 1)
             .eq('ano', anoAnterior)
+            .eq('empresa_id', selectedEmpresa) // FILTRO CRÍTICO POR EMPRESA
             .eq('tipo', 'Despesa')
             .not('categoria_id', 'is', null),
 
-          // Vendas do mês
+          // Vendas do mês FILTRADAS POR EMPRESA
           supabase
             .from('registro_de_vendas')
             .select(`
               id,
               valor,
               cliente:cliente_id(razao_social),
-              vendedor:vendedor_id(nome)
+              vendedor:vendedor_id(nome),
+              sdr:sdr_id(nome)
             `)
+            .eq('empresa_id', selectedEmpresa) // FILTRO CRÍTICO POR EMPRESA
             .gte('data_venda', startDate.toISOString().split('T')[0])
             .lte('data_venda', endDate.toISOString().split('T')[0])
         ]);
 
         // Verifica erros
+        if (empresaInfoResult.error) {
+          throw new Error(`Erro ao buscar informações da empresa: ${empresaInfoResult.error.message}`);
+        }
         if (lancamentosAtuaisResult.error) {
           throw new Error(`Erro ao buscar lançamentos atuais: ${lancamentosAtuaisResult.error.message}`);
         }
@@ -131,7 +152,10 @@ const Evolucao: React.FC = () => {
           throw new Error(`Erro ao buscar vendas: ${vendasMesResult.error.message}`);
         }
 
-        console.log(`Dados carregados em ${Date.now() - startTime}ms`);
+        console.log(`Dados carregados em ${Date.now() - startTime}ms para empresa ${selectedEmpresa}`);
+
+        // Armazena informações da empresa
+        setEmpresaInfo(empresaInfoResult.data);
 
         // Processa os dados das categorias de forma otimizada
         const categoriasMap = new Map<string, Categoria>();
@@ -181,9 +205,9 @@ const Evolucao: React.FC = () => {
         // Ordena vendas por valor (maior para menor)
         const vendasOrdenadas = (vendasMesResult.data || []).sort((a, b) => b.valor - a.valor);
 
-        console.log(`Dados processados em ${Date.now() - startTime}ms`);
+        console.log(`Dados processados em ${Date.now() - startTime}ms para empresa ${selectedEmpresa}`);
 
-        // Atualiza o cache
+        // Atualiza o cache COM EMPRESA
         evolucaoCache.set(cacheKey, {
           data: {
             categorias: categoriasProcessadas,
@@ -211,6 +235,9 @@ const Evolucao: React.FC = () => {
     fetchData();
   }, [selectedEmpresa, selectedMonth, selectedYear]);
 
+  // Verifica se é a empresa Mentorfy
+  const isMentorfy = empresaInfo?.razao_social?.toLowerCase().includes('mentorfy');
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex-none px-10 mb-4">
@@ -221,6 +248,11 @@ const Evolucao: React.FC = () => {
             </h1>
             <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
               Acompanhe a evolução mensal dos seus indicadores
+              {selectedEmpresa && empresaInfo && (
+                <span className="ml-2 text-indigo-500 font-medium">
+                  - {empresaInfo.razao_social}
+                </span>
+              )}
             </p>
           </div>
 
@@ -253,6 +285,7 @@ const Evolucao: React.FC = () => {
           <VendasMes
             vendas={vendas}
             loading={loading}
+            showSDR={isMentorfy} // Passa se deve mostrar coluna SDR
           />
         </div>
       </div>
