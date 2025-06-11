@@ -9,6 +9,7 @@ import Vendas from './pages/Vendas';
 import DespesasVendas from './pages/DespesasVendas';
 import Analise from './pages/Analise';
 import AnaliseVendas from './pages/AnaliseVendas';
+import Metas from './pages/Metas';
 import Graficos from './pages/Graficos';
 import Evolucao from './pages/Evolucao';
 import Dre from './pages/Dre';
@@ -29,6 +30,7 @@ function App() {
                 <Route path="despesas-vendas" element={<DespesasVendas />} />
                 <Route path="analise" element={<Analise />} />
                 <Route path="analise-vendas" element={<AnaliseVendas />} />
+                <Route path="metas" element={<Metas />} />
                 <Route path="graficos" element={<Graficos />} />
                 <Route path="evolucao" element={<Evolucao />} />
                 <Route path="dre" element={<Dre />} />
@@ -44,6 +46,7 @@ function App() {
           <Route path="/despesas-vendas" />
           <Route path="/analise" />
           <Route path="/analise-vendas" />
+          <Route path="/metas" />
           <Route path="/graficos" />
           <Route path="/evolucao" />
           <Route path="/dre" />

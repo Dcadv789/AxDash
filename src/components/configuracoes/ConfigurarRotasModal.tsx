@@ -29,6 +29,8 @@ const ROTAS_DISPONIVEIS: Rota[] = [
   { id: 'vendas', path: '/vendas', label: 'Vendas' },
   { id: 'analise', path: '/analise', label: 'Análise' },
   { id: 'analise-vendas', path: '/analise-vendas', label: 'Análise de Vendas' },
+  { id: 'metas', path: '/metas', label: 'Metas' },
+  { id: 'despesas-vendas', path: '/despesas-vendas', label: 'Desp. de Vendas' },
   { id: 'graficos', path: '/graficos', label: 'Gráficos' },
   { id: 'evolucao', path: '/evolucao', label: 'Evolução Mensal' },
   { id: 'dre', path: '/dre', label: 'DRE' },
